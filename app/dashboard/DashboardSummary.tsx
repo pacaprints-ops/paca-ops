@@ -1,5 +1,4 @@
 // pacaprints-ops/app/dashboard/DashboardSummary.tsx
-
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -9,18 +8,23 @@ type DashboardSummaryRow = {
   from_date: string;
   to_date: string;
   platform: string | null;
-  revenue: number; // payout (net received)
-  cogs: number; // product/material cost
-  profit: number; // we won't rely on this for the cards
+
+  // We'll no longer trust these for the cards (we'll compute from orders),
+  // but keep them in the type so nothing breaks.
+  revenue: number;
+  cogs: number;
+  profit: number;
   order_count: number;
+
   stock_value: number;
 };
 
-type OrderRow = {
+type OrderAggRow = {
   order_date: string;
-  total_revenue: number | string | null;
-  total_cost: number | string | null;
-  gross_profit: number | string | null;
+  revenue: number | string | null; // payout
+  shipping_cost: number | string | null;
+  total_cost: number | string | null; // FIFO COGS
+  cogs_override: number | string | null;
   is_refunded?: boolean | null;
 };
 
@@ -115,16 +119,21 @@ export default function DashboardSummary() {
   const [refundedCount, setRefundedCount] = useState<number>(0);
   const [lowStockCount, setLowStockCount] = useState<number>(0);
 
-  // Shipping sum for timeframe (non-refunded)
-  const [shippingSum, setShippingSum] = useState<number>(0);
+  // Computed from orders (THIS is what we show in the cards and monthly table)
+  const [aggLoading, setAggLoading] = useState<boolean>(true);
+  const [aggError, setAggError] = useState<string>("");
+  const [aggOrderCount, setAggOrderCount] = useState<number>(0);
+  const [aggPayout, setAggPayout] = useState<number>(0);
+  const [aggCostAllIn, setAggCostAllIn] = useState<number>(0);
+  const [aggProfit, setAggProfit] = useState<number>(0);
 
   const [monthlyLoading, setMonthlyLoading] = useState<boolean>(true);
   const [monthlyError, setMonthlyError] = useState<string>("");
   const [monthly, setMonthly] = useState<
     Array<{
       monthIndex: number;
-      a: { orders: number; revenue: number; cogs: number; profit: number }; // current year
-      b: { orders: number; revenue: number; cogs: number; profit: number }; // last year
+      a: { orders: number; revenue: number; cost: number; profit: number }; // current year
+      b: { orders: number; revenue: number; cost: number; profit: number }; // last year
     }>
   >([]);
 
@@ -160,6 +169,8 @@ export default function DashboardSummary() {
   }, [timeframe, customFrom, customTo, todayIso]);
 
   async function loadTopSummary() {
+    // We still load this because it gives us stock_value (and any other future fields),
+    // but we will NOT use its revenue/cogs/profit for the cards anymore.
     setLoading(true);
     setErrorMsg("");
 
@@ -180,28 +191,6 @@ export default function DashboardSummary() {
 
     setSummary((data?.[0] ?? null) as DashboardSummaryRow | null);
     setLoading(false);
-  }
-
-  async function loadShippingSum() {
-    let q = supabase
-      .from("orders")
-      .select("shipping_cost,is_refunded")
-      .gte("order_date", fromDate)
-      .lt("order_date", toDateExclusive);
-
-    if (platformValueToSend) q = q.eq("platform", platformValueToSend);
-
-    // Exclude refunded
-    q = q.or("is_refunded.is.null,is_refunded.eq.false");
-
-    const { data, error } = await q;
-    if (error) {
-      setShippingSum(0);
-      return;
-    }
-
-    const sum = (data ?? []).reduce((acc: number, r: any) => acc + toNumber(r?.shipping_cost), 0);
-    setShippingSum(sum);
   }
 
   async function loadRefundedCount() {
@@ -231,7 +220,9 @@ export default function DashboardSummary() {
       return;
     }
 
-    const { data: b, error: bErr } = await supabase.from("batches").select("material_id,remaining_quantity");
+    const { data: b, error: bErr } = await supabase
+      .from("batches")
+      .select("material_id,remaining_quantity");
 
     if (bErr) {
       setLowStockCount(0);
@@ -248,6 +239,7 @@ export default function DashboardSummary() {
       onHandByMaterial.set(mid, (onHandByMaterial.get(mid) ?? 0) + qty);
     }
 
+    // Count any tracked material where on_hand <= reorder_level
     let count = 0;
     for (const m of materials) {
       if (!m.track_stock) continue;
@@ -255,10 +247,66 @@ export default function DashboardSummary() {
       if (rl === null || !Number.isFinite(rl)) continue;
 
       const onHand = onHandByMaterial.get(m.id) ?? 0;
-      if (onHand < rl) count += 1;
+      if (onHand <= rl) count += 1;
     }
 
     setLowStockCount(count);
+  }
+
+  // ✅ This makes the top cards match your Orders logic:
+  // payout = orders.revenue
+  // cost = shipping_cost + (cogs_override ?? total_cost)
+  // profit = payout - cost
+  async function loadOrderAggregates() {
+    setAggLoading(true);
+    setAggError("");
+
+    let q = supabase
+      .from("orders")
+      .select("order_date,revenue,shipping_cost,total_cost,cogs_override,is_refunded")
+      .gte("order_date", fromDate)
+      .lt("order_date", toDateExclusive);
+
+    if (platformValueToSend) q = q.eq("platform", platformValueToSend);
+
+    // Exclude refunded
+    q = q.or("is_refunded.is.null,is_refunded.eq.false");
+
+    const { data, error } = await q;
+    if (error) {
+      setAggError(error.message);
+      setAggOrderCount(0);
+      setAggPayout(0);
+      setAggCostAllIn(0);
+      setAggProfit(0);
+      setAggLoading(false);
+      return;
+    }
+
+    const rows = (data ?? []) as OrderAggRow[];
+
+    let orders = 0;
+    let payout = 0;
+    let cost = 0;
+
+    for (const r of rows) {
+      orders += 1;
+
+      const p = toNumber(r.revenue);
+      const ship = toNumber(r.shipping_cost);
+      const cogs = r.cogs_override !== null && r.cogs_override !== undefined
+        ? toNumber(r.cogs_override)
+        : toNumber(r.total_cost);
+
+      payout += p;
+      cost += ship + cogs;
+    }
+
+    setAggOrderCount(orders);
+    setAggPayout(payout);
+    setAggCostAllIn(cost);
+    setAggProfit(payout - cost);
+    setAggLoading(false);
   }
 
   async function loadMonthlyTable() {
@@ -276,7 +324,7 @@ export default function DashboardSummary() {
 
       let q = supabase
         .from("orders")
-        .select("order_date,total_revenue,total_cost,gross_profit,is_refunded")
+        .select("order_date,revenue,shipping_cost,total_cost,cogs_override,is_refunded")
         .gte("order_date", from)
         .lt("order_date", to);
 
@@ -288,17 +336,17 @@ export default function DashboardSummary() {
       const { data, error } = await q;
       if (error) throw new Error(error.message);
 
-      return (data ?? []) as OrderRow[];
+      return (data ?? []) as OrderAggRow[];
     }
 
     try {
       const [aRows, bRows] = await Promise.all([fetchYear(yearA), fetchYear(yearB)]);
 
-      function aggregate(rows: OrderRow[]) {
+      function aggregate(rows: OrderAggRow[]) {
         const byMonth = Array.from({ length: 12 }, () => ({
           orders: 0,
-          revenue: 0,
-          cogs: 0,
+          revenue: 0, // payout
+          cost: 0, // shipping + cogs
           profit: 0,
         }));
 
@@ -307,11 +355,22 @@ export default function DashboardSummary() {
           const m = d.getMonth();
           if (m < 0 || m > 11) continue;
 
+          const payout = toNumber(r.revenue);
+          const ship = toNumber(r.shipping_cost);
+          const cogs =
+            r.cogs_override !== null && r.cogs_override !== undefined
+              ? toNumber(r.cogs_override)
+              : toNumber(r.total_cost);
+
+          const cost = ship + cogs;
+          const profit = payout - cost;
+
           byMonth[m].orders += 1;
-          byMonth[m].revenue += toNumber(r.total_revenue);
-          byMonth[m].cogs += toNumber(r.total_cost);
-          byMonth[m].profit += toNumber(r.gross_profit);
+          byMonth[m].revenue += payout;
+          byMonth[m].cost += cost;
+          byMonth[m].profit += profit;
         }
+
         return byMonth;
       }
 
@@ -341,12 +400,12 @@ export default function DashboardSummary() {
     const header = [
       "Month",
       `${yearA} Orders`,
-      `${yearA} Revenue`,
-      `${yearA} Cost`,
+      `${yearA} Payout`,
+      `${yearA} Cost (Ship+COGS)`,
       `${yearA} Profit`,
       `${yearB} Orders`,
-      `${yearB} Revenue`,
-      `${yearB} Cost`,
+      `${yearB} Payout`,
+      `${yearB} Cost (Ship+COGS)`,
       `${yearB} Profit`,
     ];
 
@@ -354,11 +413,11 @@ export default function DashboardSummary() {
       monthLabel(r.monthIndex),
       String(r.a.orders),
       String(r.a.revenue),
-      String(r.a.cogs),
+      String(r.a.cost),
       String(r.a.profit),
       String(r.b.orders),
       String(r.b.revenue),
-      String(r.b.cogs),
+      String(r.b.cost),
       String(r.b.profit),
     ]);
 
@@ -369,8 +428,8 @@ export default function DashboardSummary() {
     loadTopSummary();
     loadRefundedCount();
     loadLowStockAlert();
+    loadOrderAggregates();
     loadMonthlyTable();
-    loadShippingSum();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fromDate, toDateExclusive, platformValueToSend]);
 
@@ -378,11 +437,11 @@ export default function DashboardSummary() {
   const yearA = now.getFullYear();
   const yearB = yearA - 1;
 
-  // Cards: payout revenue, ALL-IN cost (cogs + shipping), profit = revenue - cost
-  const revenuePayout = loading || !summary ? null : toNumber(summary.revenue);
-  const cogsOnly = loading || !summary ? null : toNumber(summary.cogs);
-  const costAllIn = revenuePayout === null || cogsOnly === null ? null : cogsOnly + toNumber(shippingSum);
-  const profitAllIn = revenuePayout === null || costAllIn === null ? null : revenuePayout - costAllIn;
+  // Cards (computed from orders)
+  const revenuePayout = aggLoading ? null : aggPayout;
+  const costAllIn = aggLoading ? null : aggCostAllIn;
+  const profitAllIn = aggLoading ? null : aggProfit;
+  const ordersCount = aggLoading ? null : aggOrderCount;
 
   return (
     <div className="space-y-6">
@@ -406,6 +465,12 @@ export default function DashboardSummary() {
                 {timeframe === "custom" ? customTo : isoDate(addDays(new Date(toDateExclusive), -1))}
               </span>
             </p>
+
+            {aggError ? (
+              <div className="mt-2 text-xs font-semibold text-red-700">
+                Order totals error: {aggError}
+              </div>
+            ) : null}
           </div>
 
           <div className="flex flex-wrap items-end gap-3">
@@ -477,21 +542,25 @@ export default function DashboardSummary() {
 
       {/* Top Boxes */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
-        <StatCard title="Total Orders" value={loading || !summary ? "—" : formatInt(toNumber(summary.order_count))} />
-        <StatCard title="Revenue" value={revenuePayout === null ? "—" : formatGBP(revenuePayout)} />
-        <StatCard title="Cost" value={costAllIn === null ? "—" : formatGBP(costAllIn)} />
+        <StatCard title="Total Orders" value={ordersCount === null ? "—" : formatInt(ordersCount)} />
+        <StatCard title="Revenue (payout)" value={revenuePayout === null ? "—" : formatGBP(revenuePayout)} />
+        <StatCard title="Cost (ship + COGS)" value={costAllIn === null ? "—" : formatGBP(costAllIn)} />
         <StatCard title="Profit" value={profitAllIn === null ? "—" : formatGBP(profitAllIn)} />
         <StatCard title="Refunded" value={loading ? "—" : formatInt(refundedCount)} />
       </div>
 
       {/* Second row */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div className="pp-card p-5 text-center">
+        <div
+          className={`pp-card p-5 text-center ${
+            lowStockCount > 0 ? "border-red-200 bg-red-50" : ""
+          }`}
+        >
           <div className="text-sm font-extrabold text-slate-900">Low Stock Alert</div>
           <div className={`mt-4 text-3xl font-extrabold ${lowStockCount > 0 ? "text-red-700" : "text-slate-900"}`}>
             {formatInt(lowStockCount)}
           </div>
-          <div className="mt-2 text-xs text-slate-600">Count of raw materials where on-hand &lt; reorder level</div>
+          <div className="mt-2 text-xs text-slate-600">Count of raw materials where on-hand ≤ reorder level</div>
         </div>
 
         <div className="pp-card p-5 text-center">
@@ -505,8 +574,10 @@ export default function DashboardSummary() {
 
       {/* Monthly table */}
       <div className="pp-card p-5">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <div className="text-sm font-extrabold text-slate-900">Monthly totals ({yearA} vs {yearB})</div>
+        <div className="mb-1 flex flex-wrap items-center justify-between gap-3">
+          <div className="text-sm font-extrabold text-slate-900">
+            Monthly totals ({yearA} vs {yearB})
+          </div>
           <button
             type="button"
             className="pp-btn pp-btn-secondary"
@@ -517,6 +588,10 @@ export default function DashboardSummary() {
           </button>
         </div>
 
+        <div className="mb-3 text-xs text-slate-500">
+          Mobile tip: swipe sideways to see {yearB}.
+        </div>
+
         {monthlyError ? (
           <div className="pp-card p-4">
             <div className="text-sm font-semibold text-red-700">Failed to load monthly table: {monthlyError}</div>
@@ -524,7 +599,7 @@ export default function DashboardSummary() {
         ) : monthlyLoading ? (
           <div className="text-sm text-slate-600">Loading monthly table…</div>
         ) : (
-          // ✅ Dedicated horizontal scroll wrapper (mobile swipe)
+          // ✅ Horizontal scroll wrapper (mobile swipe)
           <div className="-mx-5 overflow-x-auto px-5" style={{ WebkitOverflowScrolling: "touch" }}>
             <div className="pp-table">
               <table className="min-w-[980px]">
@@ -532,11 +607,11 @@ export default function DashboardSummary() {
                   <tr>
                     <th>Month</th>
                     <th>{yearA} Orders</th>
-                    <th>{yearA} Revenue</th>
+                    <th>{yearA} Payout</th>
                     <th>{yearA} Cost</th>
                     <th>{yearA} Profit</th>
                     <th>{yearB} Orders</th>
-                    <th>{yearB} Revenue</th>
+                    <th>{yearB} Payout</th>
                     <th>{yearB} Cost</th>
                     <th>{yearB} Profit</th>
                   </tr>
@@ -548,12 +623,12 @@ export default function DashboardSummary() {
 
                       <td>{formatInt(r.a.orders)}</td>
                       <td>{formatGBP(r.a.revenue)}</td>
-                      <td>{formatGBP(r.a.cogs)}</td>
+                      <td>{formatGBP(r.a.cost)}</td>
                       <td>{formatGBP(r.a.profit)}</td>
 
                       <td>{formatInt(r.b.orders)}</td>
                       <td>{formatGBP(r.b.revenue)}</td>
-                      <td>{formatGBP(r.b.cogs)}</td>
+                      <td>{formatGBP(r.b.cost)}</td>
                       <td>{formatGBP(r.b.profit)}</td>
                     </tr>
                   ))}
