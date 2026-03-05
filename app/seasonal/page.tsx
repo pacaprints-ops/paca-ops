@@ -1,16 +1,8 @@
 // app/seasonal/page.tsx
 // Seasonal planner (UK) with “prep by” dates + Ideas column.
-// Lead time is used internally (leadDays) but NOT shown as a column.
+// Events are sourced from ./events (single source of truth).
 
-type SeasonalEvent = {
-  name: string;
-  dateISO?: string; // exact date if known
-  approxLabel?: string; // for variable dates
-  leadDays: number; // used to calculate prep-by date (not shown)
-  ideas?: string; // ✅ products/content ideas
-  notes?: string;
-  tags?: string[];
-};
+import { seasonalEvents, type SeasonalEvent } from "./events";
 
 function formatUKDate(iso: string) {
   const d = new Date(iso + "T00:00:00");
@@ -32,8 +24,7 @@ function addDays(iso: string, days: number) {
 function daysUntil(fromISO: string, toISO: string) {
   const a = new Date(fromISO + "T00:00:00").getTime();
   const b = new Date(toISO + "T00:00:00").getTime();
-  const diff = Math.round((b - a) / (1000 * 60 * 60 * 24));
-  return diff;
+  return Math.round((b - a) / (1000 * 60 * 60 * 24));
 }
 
 export default function SeasonalPage() {
@@ -42,102 +33,7 @@ export default function SeasonalPage() {
     .toISOString()
     .slice(0, 10);
 
-  // ✅ Edit this list whenever you want
-  const events: SeasonalEvent[] = [
-    {
-      name: "Mother’s Day (UK)",
-      dateISO: "2026-03-15",
-      leadDays: 28,
-      ideas: "Mum cards (funny + cute), personalised family prints, bundles with crochet bouquet.",
-      notes: "Aim for drafts live + shipping cutoffs in place.",
-      tags: ["cards", "prints"],
-    },
-    {
-      name: "Easter (Good Friday bank holiday)",
-      dateISO: "2026-04-03",
-      leadDays: 42,
-      ideas: "Easter activity packs, kids gift bundles, personalised prints for nursery/kids rooms.",
-      notes: "Treat as the start of Easter buying window.",
-      tags: ["kids", "gifts"],
-    },
-    {
-      name: "Easter Monday (bank holiday)",
-      dateISO: "2026-04-06",
-      leadDays: 42,
-      ideas: "Same as Easter weekend—use this as a last shipping ‘deadline’ marker.",
-      tags: ["kids", "gifts"],
-    },
-    {
-      name: "Father’s Day (UK)",
-      dateISO: "2026-06-21",
-      leadDays: 42,
-      ideas: "Dad/Grandad cards, funny ‘dad’ prints, personalised family prints incl. pets.",
-      notes: "Start teasers earlier if you’re doing personalisation.",
-      tags: ["cards", "prints"],
-    },
-    {
-      name: "End of School Year / Teacher Gifts",
-      approxLabel: "Late Jul (varies by area)",
-      leadDays: 35,
-      ideas: "Teacher cards, vinyl decals (name/label sets), small gift bundles, classroom prints.",
-      notes: "Term dates vary — keep stock ready and designs templated.",
-      tags: ["teacher", "gifts"],
-    },
-    {
-      name: "Back to School",
-      approxLabel: "Early Sep (varies by area)",
-      leadDays: 28,
-      ideas: "Lunchbox labels, name decals, planner/organisation prints, first-day boards.",
-      notes: "Great for vinyl + personalised sets.",
-      tags: ["vinyl", "labels"],
-    },
-    {
-      name: "Halloween",
-      dateISO: "2026-10-31",
-      leadDays: 45,
-      ideas: "Halloween cards, spooky prints, party signage, kids ‘boo basket’ labels.",
-      notes: "List early—people buy in Sept/Oct.",
-      tags: ["seasonal"],
-    },
-    {
-      name: "Bonfire Night (Guy Fawkes Night)",
-      dateISO: "2026-11-05",
-      leadDays: 21,
-      ideas: "Cozy/autumn prints, party labels, funny seasonal cards (low effort quick wins).",
-      tags: ["seasonal"],
-    },
-    {
-      name: "Black Friday",
-      dateISO: "2026-11-27",
-      leadDays: 30,
-      ideas: "Bundles, best-seller discounts, ‘gift-ready’ framed prints, stock clearance promos.",
-      notes: "Plan bundles + shipping messaging.",
-      tags: ["promo"],
-    },
-    {
-      name: "Cyber Monday",
-      dateISO: "2026-11-30",
-      leadDays: 30,
-      ideas: "Digital downloads, last-chance bundles, ‘personalised in 24h’ push if possible.",
-      tags: ["promo"],
-    },
-    {
-      name: "Christmas Day",
-      dateISO: "2026-12-25",
-      leadDays: 60,
-      ideas: "Christmas cards, family prints, pet ornaments/labels, gift bundles + wrapping inserts.",
-      notes: "Start listings earlier (Oct).",
-      tags: ["q4"],
-    },
-    {
-      name: "Valentine’s Day",
-      dateISO: "2027-02-14",
-      leadDays: 45,
-      ideas: "Cheeky cards, LGBTQ+ cards, couple prints, ‘Galentine’s’ cards.",
-      notes: "Prep in Dec/Jan so you’re not scrambling.",
-      tags: ["cards"],
-    },
-  ];
+  const events: SeasonalEvent[] = seasonalEvents;
 
   const dated = events
     .filter((e) => !!e.dateISO)
@@ -196,14 +92,10 @@ export default function SeasonalPage() {
                       <span className={prepPassed ? "text-red-700 font-semibold" : "text-slate-900"}>
                         {formatUKDate(e.prepISO)}
                       </span>
-                      {prepPassed ? (
-                        <span className="ml-2 text-xs font-semibold text-red-700">OVERDUE</span>
-                      ) : null}
+                      {prepPassed ? <span className="ml-2 text-xs font-semibold text-red-700">OVERDUE</span> : null}
                     </td>
 
-                    <td className="px-3 py-2 whitespace-nowrap">
-                      {holidayPassed ? "—" : `${e.untilHoliday} days`}
-                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap">{holidayPassed ? "—" : `${e.untilHoliday} days`}</td>
 
                     <td className="px-3 py-2 text-slate-700">{e.ideas ?? "—"}</td>
 
@@ -225,10 +117,17 @@ export default function SeasonalPage() {
         <ul className="list-disc pl-5 text-sm text-slate-700 space-y-2">
           {approx.map((e) => (
             <li key={e.name}>
-              <span className="font-semibold text-slate-900">{e.name}:</span>{" "}
-              {e.approxLabel ?? "—"}
-              {e.ideas ? <div className="text-slate-700 mt-1"><span className="font-semibold">Ideas:</span> {e.ideas}</div> : null}
-              {e.notes ? <div className="text-slate-600"><span className="font-semibold">Notes:</span> {e.notes}</div> : null}
+              <span className="font-semibold text-slate-900">{e.name}:</span> {e.approxLabel ?? "—"}
+              {e.ideas ? (
+                <div className="text-slate-700 mt-1">
+                  <span className="font-semibold">Ideas:</span> {e.ideas}
+                </div>
+              ) : null}
+              {e.notes ? (
+                <div className="text-slate-600">
+                  <span className="font-semibold">Notes:</span> {e.notes}
+                </div>
+              ) : null}
             </li>
           ))}
         </ul>
