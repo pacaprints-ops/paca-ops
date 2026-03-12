@@ -7,6 +7,21 @@ type Tool = {
   icon: string;
 };
 
+const pacaTools: Tool[] = [
+  {
+    title: "Platform Costs",
+    description: "Track monthly platform fees. Toggle platforms off to see what you'd save.",
+    href: "/admin/paca/platform-costs",
+    icon: "💸",
+  },
+  {
+    title: "Margin Calculator",
+    description: "Profit and margin per platform with fees, sale prices, and reverse calculations.",
+    href: "/admin/paca/margin-calculator",
+    icon: "📊",
+  },
+];
+
 const carrieTools: Tool[] = [
   {
     title: "Finances",
@@ -80,6 +95,7 @@ export default function AdminPage() {
       <p className="text-slate-500 text-sm mb-8">Internal tools — just for us.</p>
 
       <div className="flex flex-col gap-10">
+        <PersonSection name="Paca" tools={pacaTools} />
         <PersonSection name="Carrie" tools={carrieTools} />
         <PersonSection name="Vicky" tools={vickyTools} />
       </div>
