@@ -14,6 +14,7 @@ const tabs = [
 
   // ✅ NEW PAGE
   { label: "Seasonal Planner", href: "/seasonal" },
+  { label: "Admin", href: "/admin" },
 ];
 
 export default function TopNav() {
