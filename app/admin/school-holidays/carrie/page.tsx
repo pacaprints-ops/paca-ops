@@ -1,7 +1,7 @@
 import Link from "next/link";
-import HolidayPlanner from "../HolidayPlanner";
+import SchoolCalendar from "../SchoolCalendar";
 
-export default function CarrieHolidaysPage() {
+export default function CarrieSchoolCalendarPage() {
   return (
     <main className="pp-container py-8">
       <div className="mb-6 flex items-center gap-3">
@@ -9,9 +9,9 @@ export default function CarrieHolidaysPage() {
           ← Admin
         </Link>
         <span className="text-slate-300">/</span>
-        <h1 className="text-2xl font-extrabold text-slate-900">Carrie's School Holiday Planner</h1>
+        <h1 className="text-2xl font-extrabold text-slate-900">Carrie — School Calendar</h1>
       </div>
-      <HolidayPlanner person="carrie" />
+      <SchoolCalendar person="carrie" />
     </main>
   );
 }
