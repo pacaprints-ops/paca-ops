@@ -10,7 +10,8 @@ type CalendarStore = {
   children: string[];
   carers: Carer[];
   periods: Period[];
-  care: Record<string, Record<string, string>>; // YYYY-MM-DD -> childName -> carerId
+  care: Record<string, Record<string, string>>;  // YYYY-MM-DD -> childName -> carerId
+  notes: Record<string, Record<string, string>>; // YYYY-MM-DD -> childName -> note
 };
 
 // ── Period type display ────────────────────────────────────────────────────
@@ -42,6 +43,7 @@ function makeDefaults(person: string): CalendarStore {
         { id: "cm",     name: "Childminder", color: "#22C55E" },
       ],
       care: {},
+      notes: {},
       periods: [
         // ── Bearwood 2025–26 ──────────────────────────────────────────
         { id: "b01", label: "INSET Day",         type: "inset",     start: "2025-09-03", end: "2025-09-03" },
@@ -187,7 +189,9 @@ function DayRow({
   children: string[];
   carers: Carer[];
   assignments: Record<string, string>;
+  notes: Record<string, string>;
   onChange: (child: string, carerId: string) => void;
+  onNoteChange: (child: string, note: string) => void;
 }) {
   const weekend = isWeekend(date);
   const { weekday, date: dateStr } = dayLabel(date);
@@ -250,6 +254,13 @@ function DayRow({
                   <span className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-[10px]"
                     style={{ color: carer ? "#fff" : "#94A3B8" }}>▼</span>
                 </div>
+                <input
+                  type="text"
+                  value={notes[child] ?? ""}
+                  onChange={(e) => onNoteChange(child, e.target.value)}
+                  placeholder="Notes…"
+                  className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 placeholder:text-slate-300 focus:border-teal-400 focus:outline-none focus:ring-1 focus:ring-teal-300 w-36"
+                />
               </div>
             );
           })}
@@ -451,10 +462,14 @@ export default function SchoolCalendar({ person }: { person: string }) {
   function setAssignment(date: string, child: string, carerId: string) {
     setStore((s) => ({
       ...s,
-      care: {
-        ...s.care,
-        [date]: { ...(s.care[date] ?? {}), [child]: carerId },
-      },
+      care: { ...s.care, [date]: { ...(s.care[date] ?? {}), [child]: carerId } },
+    }));
+  }
+
+  function setNote(date: string, child: string, note: string) {
+    setStore((s) => ({
+      ...s,
+      notes: { ...s.notes, [date]: { ...(s.notes[date] ?? {}), [child]: note } },
     }));
   }
 
@@ -538,7 +553,9 @@ export default function SchoolCalendar({ person }: { person: string }) {
               children={store.children}
               carers={store.carers}
               assignments={store.care[date] ?? {}}
+              notes={store.notes?.[date] ?? {}}
               onChange={(child, carerId) => setAssignment(date, child, carerId)}
+              onNoteChange={(child, note) => setNote(date, child, note)}
             />
           ))}
         </div>
