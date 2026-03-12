@@ -59,6 +59,7 @@ export default function MarginCalculator() {
   const [loaded, setLoaded] = useState(false);
 
   const [cogs, setCogs] = useState("");
+  const [shipping, setShipping] = useState("");
   const [sellPrice, setSellPrice] = useState("");
   const [saleDiscount, setSaleDiscount] = useState("");
   const [targetMargin, setTargetMargin] = useState("");
@@ -93,14 +94,14 @@ export default function MarginCalculator() {
 
   // Core calculation for a given sell price
   function calcForPrice(price: number, pct: number, fixed: number) {
-    const cogsVal = parse(cogs);
+    const totalCost = parse(cogs) + parse(shipping);
     const fees = price * (pct / 100) + fixed;
-    const profit = price - cogsVal - fees;
+    const profit = price - totalCost - fees;
     const margin = price > 0 ? (profit / price) * 100 : 0;
     return { fees, profit, margin };
   }
 
-  const cogsVal = parse(cogs);
+  const cogsVal = parse(cogs) + parse(shipping);
   const sellVal = parse(sellPrice);
   const discountVal = parse(saleDiscount);
   const salePriceVal = discountVal > 0 ? sellVal * (1 - discountVal / 100) : 0;
@@ -137,6 +138,10 @@ export default function MarginCalculator() {
           <div>
             <label className="block text-xs font-semibold text-slate-500 mb-1">COGS (cost per unit)</label>
             <TInput value={cogs} onChange={setCogs} placeholder="0.54" type="number" prefix="£" className="w-36" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">Shipping cost</label>
+            <TInput value={shipping} onChange={setShipping} placeholder="0.00" type="number" prefix="£" className="w-36" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-slate-500 mb-1">Sell Price</label>
