@@ -82,6 +82,7 @@ function makeDefaults(person: string): CalendarStore {
       { id: "scott", name: "Scott", color: "#8B5CF6" },
     ],
     care: {},
+    notes: {},
     periods: [
       // ── Fern First 2025–26 ────────────────────────────────────────
       { id: "f01", label: "Staff Training Day",  type: "inset",        start: "2025-09-01", end: "2025-09-01" },
