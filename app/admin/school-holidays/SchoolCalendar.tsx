@@ -72,7 +72,7 @@ function makeDefaults(person: string): CalendarStore {
       ],
     };
   }
-  // Vicky — dates to be added once school provides them
+  // Vicky — Ferndown First School (Castleman Academy Trust)
   return {
     children: ["Thea", "Luca"],
     carers: [
@@ -80,7 +80,33 @@ function makeDefaults(person: string): CalendarStore {
       { id: "scott", name: "Scott", color: "#8B5CF6" },
     ],
     care: {},
-    periods: [],
+    periods: [
+      // ── Fern First 2025–26 ────────────────────────────────────────
+      { id: "f01", label: "Staff Training Day",  type: "inset",        start: "2025-09-01", end: "2025-09-01" },
+      { id: "f02", label: "Staff Training Day",  type: "inset",        start: "2025-09-02", end: "2025-09-02" },
+      { id: "f03", label: "Autumn Half Term",    type: "half_term",    start: "2025-10-27", end: "2025-10-31" },
+      { id: "f04", label: "Christmas Holiday",   type: "holiday",      start: "2025-12-20", end: "2026-01-04" },
+      { id: "f05", label: "Staff Training Day",  type: "inset",        start: "2026-01-05", end: "2026-01-05" },
+      { id: "f06", label: "Spring Half Term",    type: "half_term",    start: "2026-02-16", end: "2026-02-20" },
+      { id: "f07", label: "Easter Holiday",      type: "holiday",      start: "2026-03-30", end: "2026-04-10" },
+      { id: "f08", label: "May Day",             type: "bank_holiday", start: "2026-05-04", end: "2026-05-04" },
+      { id: "f09", label: "Summer Half Term",    type: "half_term",    start: "2026-05-25", end: "2026-05-29" },
+      { id: "f10", label: "Staff Training Day",  type: "inset",        start: "2026-06-01", end: "2026-06-01" },
+      { id: "f11", label: "Summer Holiday",      type: "holiday",      start: "2026-07-20", end: "2026-08-31" },
+      // ── Fern First 2026–27 ────────────────────────────────────────
+      { id: "f12", label: "Staff Training Day",  type: "inset",        start: "2026-09-01", end: "2026-09-01" },
+      { id: "f13", label: "Staff Training Day",  type: "inset",        start: "2026-09-02", end: "2026-09-02" },
+      { id: "f14", label: "Autumn Half Term",    type: "half_term",    start: "2026-10-26", end: "2026-10-30" },
+      { id: "f15", label: "Christmas Holiday",   type: "holiday",      start: "2026-12-19", end: "2027-01-03" },
+      { id: "f16", label: "Staff Training Day",  type: "inset",        start: "2027-01-04", end: "2027-01-04" },
+      { id: "f17", label: "Spring Half Term",    type: "half_term",    start: "2027-02-15", end: "2027-02-19" },
+      { id: "f18", label: "Staff Training Day",  type: "inset",        start: "2027-03-25", end: "2027-03-25" },
+      { id: "f19", label: "Easter Holiday",      type: "holiday",      start: "2027-03-26", end: "2027-04-11" },
+      { id: "f20", label: "May Day",             type: "bank_holiday", start: "2027-05-03", end: "2027-05-03" },
+      { id: "f21", label: "Summer Half Term",    type: "half_term",    start: "2027-05-31", end: "2027-06-04" },
+      { id: "f22", label: "Staff Training Day",  type: "inset",        start: "2027-06-07", end: "2027-06-07" },
+      { id: "f23", label: "Summer Holiday",      type: "holiday",      start: "2027-07-24", end: "2027-08-31" },
+    ],
   };
 }
 
