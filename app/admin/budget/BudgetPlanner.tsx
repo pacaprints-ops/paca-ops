@@ -13,10 +13,11 @@ type FixedOutgoing = {
   category: string;
 };
 type AdhocItem = { id: string; label: string; amount: string };
-type PersonBudget = {
+
+type BudgetStorage = {
   income: Income[];
   fixed: FixedOutgoing[];
-  adhoc: AdhocItem[];
+  adhoc: Record<string, AdhocItem[]>; // keyed by "YYYY-MM"
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -29,8 +30,18 @@ function parse(v: string) {
 function fmt(n: number) {
   return `£${n.toFixed(2)}`;
 }
-function emptyBudget(): PersonBudget {
-  return { income: [], fixed: [], adhoc: [] };
+function monthKey(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+function monthLabel(key: string) {
+  const [y, m] = key.split("-");
+  return new Date(Number(y), Number(m) - 1, 1).toLocaleString("en-GB", {
+    month: "long",
+    year: "numeric",
+  });
+}
+function emptyStorage(): BudgetStorage {
+  return { income: [], fixed: [], adhoc: {} };
 }
 
 const CATEGORIES = [
@@ -49,7 +60,7 @@ const CATEGORIES = [
   "Other",
 ];
 
-// ── Input helpers ──────────────────────────────────────────────────────────
+// ── Small UI helpers ───────────────────────────────────────────────────────
 function TInput({
   value,
   onChange,
@@ -96,291 +107,308 @@ function SectionHeader({ children }: { children: React.ReactNode }) {
 
 // ── Main Component ─────────────────────────────────────────────────────────
 export default function BudgetPlanner({ person }: { person: string }) {
-  const storageKey = `pp-budget-v1-${person}`;
-  const [data, setData] = useState<PersonBudget>(emptyBudget);
+  const storageKey = `pp-budget-v2-${person}`;
+  const currentMonth = monthKey(new Date());
+
+  const [store, setStore] = useState<BudgetStorage>(emptyStorage);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     try {
       const saved = localStorage.getItem(storageKey);
-      if (saved) setData(JSON.parse(saved));
+      if (saved) setStore(JSON.parse(saved));
     } catch {}
     setLoaded(true);
   }, [storageKey]);
 
   useEffect(() => {
-    if (loaded) localStorage.setItem(storageKey, JSON.stringify(data));
-  }, [data, loaded, storageKey]);
+    if (loaded) localStorage.setItem(storageKey, JSON.stringify(store));
+  }, [store, loaded, storageKey]);
 
-  function update(patch: Partial<PersonBudget>) {
-    setData((prev) => ({ ...prev, ...patch }));
+  // Convenience accessors
+  const adhocThisMonth: AdhocItem[] = store.adhoc[currentMonth] ?? [];
+
+  // ── Updaters ──
+
+  function setIncome(income: Income[]) {
+    setStore((s) => ({ ...s, income }));
+  }
+  function setFixed(fixed: FixedOutgoing[]) {
+    setStore((s) => ({ ...s, fixed }));
+  }
+  function setAdhoc(items: AdhocItem[]) {
+    setStore((s) => ({
+      ...s,
+      adhoc: { ...s.adhoc, [currentMonth]: items },
+    }));
   }
 
-  // ── Income ──
+  // Income
   function addIncome() {
-    update({ income: [...data.income, { id: uid(), label: "", amount: "" }] });
+    setIncome([...store.income, { id: uid(), label: "", amount: "" }]);
   }
-  function setIncome(id: string, field: keyof Income, val: string) {
-    update({ income: data.income.map((i) => (i.id === id ? { ...i, [field]: val } : i)) });
+  function updateIncome(id: string, field: keyof Income, val: string) {
+    setIncome(store.income.map((i) => (i.id === id ? { ...i, [field]: val } : i)));
   }
   function removeIncome(id: string) {
-    update({ income: data.income.filter((i) => i.id !== id) });
+    setIncome(store.income.filter((i) => i.id !== id));
   }
 
-  // ── Fixed ──
+  // Fixed
   function addFixed() {
-    update({
-      fixed: [
-        ...data.fixed,
-        { id: uid(), label: "", amount: "", bank: "", date: "", category: "" },
-      ],
-    });
+    setFixed([
+      ...store.fixed,
+      { id: uid(), label: "", amount: "", bank: "", date: "", category: "" },
+    ]);
   }
-  function setFixed(id: string, field: keyof FixedOutgoing, val: string) {
-    update({ fixed: data.fixed.map((f) => (f.id === id ? { ...f, [field]: val } : f)) });
+  function updateFixed(id: string, field: keyof FixedOutgoing, val: string) {
+    setFixed(store.fixed.map((f) => (f.id === id ? { ...f, [field]: val } : f)));
   }
   function removeFixed(id: string) {
-    update({ fixed: data.fixed.filter((f) => f.id !== id) });
+    setFixed(store.fixed.filter((f) => f.id !== id));
   }
 
-  // ── Ad-hoc ──
+  // Ad-hoc
   function addAdhoc() {
-    update({ adhoc: [...data.adhoc, { id: uid(), label: "", amount: "" }] });
+    setAdhoc([...adhocThisMonth, { id: uid(), label: "", amount: "" }]);
   }
-  function setAdhoc(id: string, field: keyof AdhocItem, val: string) {
-    update({ adhoc: data.adhoc.map((a) => (a.id === id ? { ...a, [field]: val } : a)) });
+  function updateAdhoc(id: string, field: keyof AdhocItem, val: string) {
+    setAdhoc(adhocThisMonth.map((a) => (a.id === id ? { ...a, [field]: val } : a)));
   }
   function removeAdhoc(id: string) {
-    update({ adhoc: data.adhoc.filter((a) => a.id !== id) });
+    setAdhoc(adhocThisMonth.filter((a) => a.id !== id));
   }
 
-  // ── Totals ──
-  const totalIncome = data.income.reduce((s, i) => s + parse(i.amount), 0);
-  const totalFixed = data.fixed.reduce((s, f) => s + parse(f.amount), 0);
+  // Totals
+  const totalIncome = store.income.reduce((s, i) => s + parse(i.amount), 0);
+  const totalFixed = store.fixed.reduce((s, f) => s + parse(f.amount), 0);
   const afterFixed = totalIncome - totalFixed;
-  const totalAdhoc = data.adhoc.reduce((s, a) => s + parse(a.amount), 0);
+  const totalAdhoc = adhocThisMonth.reduce((s, a) => s + parse(a.amount), 0);
   const totalOut = totalFixed + totalAdhoc;
   const remaining = totalIncome - totalOut;
 
   if (!loaded) return null;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-3">
-      {/* ── Left / centre columns ── */}
-      <div className="lg:col-span-2 flex flex-col gap-6">
-
-        {/* Income */}
-        <div className="pp-card p-5">
-          <SectionHeader>💰 Income</SectionHeader>
-          {data.income.length === 0 && (
-            <p className="text-sm text-slate-400 mb-3">No income added yet.</p>
-          )}
-          <div className="flex flex-col gap-2 mb-3">
-            {data.income.map((inc) => (
-              <div key={inc.id} className="flex gap-2 items-center">
-                <TInput
-                  value={inc.label}
-                  onChange={(v) => setIncome(inc.id, "label", v)}
-                  placeholder="e.g. Salary, Freelance"
-                  className="flex-1"
-                />
-                <TInput
-                  value={inc.amount}
-                  onChange={(v) => setIncome(inc.id, "amount", v)}
-                  placeholder="0.00"
-                  type="number"
-                  className="w-28"
-                />
-                <DeleteBtn onClick={() => removeIncome(inc.id)} />
-              </div>
-            ))}
-          </div>
-          <button onClick={addIncome} className="pp-btn pp-btn-primary text-xs px-3 py-1.5">
-            + Add Income
-          </button>
-        </div>
-
-        {/* Fixed Outgoings */}
-        <div className="pp-card p-5">
-          <SectionHeader>📋 Fixed Monthly Outgoings</SectionHeader>
-          {data.fixed.length === 0 && (
-            <p className="text-sm text-slate-400 mb-3">No fixed outgoings added yet.</p>
-          )}
-          <div className="flex flex-col gap-3 mb-3">
-            {data.fixed.map((f) => (
-              <div
-                key={f.id}
-                className="flex flex-wrap gap-2 items-center border-b border-slate-100 pb-3 last:border-0 last:pb-0"
-              >
-                <TInput
-                  value={f.label}
-                  onChange={(v) => setFixed(f.id, "label", v)}
-                  placeholder="Description"
-                  className="flex-1 min-w-32"
-                />
-                <TInput
-                  value={f.amount}
-                  onChange={(v) => setFixed(f.id, "amount", v)}
-                  placeholder="0.00"
-                  type="number"
-                  className="w-24"
-                />
-                <DeleteBtn onClick={() => removeFixed(f.id)} />
-                <TInput
-                  value={f.bank}
-                  onChange={(v) => setFixed(f.id, "bank", v)}
-                  placeholder="Bank / Card"
-                  className="flex-1 min-w-28"
-                />
-                <TInput
-                  value={f.date}
-                  onChange={(v) => setFixed(f.id, "date", v)}
-                  placeholder="Day (e.g. 1st)"
-                  className="w-28"
-                />
-                <select
-                  value={f.category}
-                  onChange={(e) => setFixed(f.id, "category", e.target.value)}
-                  className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-900 focus:border-teal-400 focus:outline-none focus:ring-1 focus:ring-teal-300 flex-1 min-w-36"
-                >
-                  {CATEGORIES.map((c) => (
-                    <option key={c} value={c}>
-                      {c || "Category…"}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ))}
-          </div>
-          <button onClick={addFixed} className="pp-btn pp-btn-primary text-xs px-3 py-1.5">
-            + Add Fixed Outgoing
-          </button>
-        </div>
-
-        {/* Ad-hoc */}
-        <div className="pp-card p-5">
-          <SectionHeader>📝 Ad-hoc This Month</SectionHeader>
-          <p className="text-xs text-slate-400 mb-3">
-            One-offs, savings, birthday money — anything not fixed.
-          </p>
-          {data.adhoc.length === 0 && (
-            <p className="text-sm text-slate-400 mb-3">Nothing added yet.</p>
-          )}
-          <div className="flex flex-col gap-2 mb-3">
-            {data.adhoc.map((a) => (
-              <div key={a.id} className="flex gap-2 items-center">
-                <TInput
-                  value={a.label}
-                  onChange={(v) => setAdhoc(a.id, "label", v)}
-                  placeholder="e.g. Birthday fund, Savings pot"
-                  className="flex-1"
-                />
-                <TInput
-                  value={a.amount}
-                  onChange={(v) => setAdhoc(a.id, "amount", v)}
-                  placeholder="0.00"
-                  type="number"
-                  className="w-28"
-                />
-                <DeleteBtn onClick={() => removeAdhoc(a.id)} />
-              </div>
-            ))}
-          </div>
-          <button onClick={addAdhoc} className="pp-btn pp-btn-primary text-xs px-3 py-1.5">
-            + Add Item
-          </button>
-        </div>
+    <div>
+      {/* Month badge */}
+      <div className="inline-flex items-center gap-2 rounded-xl px-4 py-2 mb-6 text-sm font-semibold text-slate-700"
+        style={{ background: "var(--pp-teal-soft)", border: "1px solid var(--pp-teal-border)" }}>
+        <span>📅</span>
+        <span>{monthLabel(currentMonth)}</span>
+        <span className="text-slate-400 font-normal text-xs">— ad-hoc resets each month</span>
       </div>
 
-      {/* ── Summary sidebar ── */}
-      <div>
-        <div className="pp-card-strong p-5 sticky top-24">
-          <SectionHeader>📊 Summary</SectionHeader>
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* ── Input columns ── */}
+        <div className="lg:col-span-2 flex flex-col gap-6">
 
-          {/* Income breakdown */}
-          <div className="mb-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">Income</p>
-            {data.income.map((i) => (
-              <div key={i.id} className="flex justify-between text-sm py-0.5">
-                <span className="text-slate-600 truncate max-w-40">{i.label || "—"}</span>
-                <span className="tabular-nums text-slate-800">{fmt(parse(i.amount))}</span>
-              </div>
-            ))}
-            <div className="flex justify-between text-sm font-bold pt-1 border-t border-slate-100 mt-1">
-              <span>Total Income</span>
-              <span className="text-emerald-600 tabular-nums">{fmt(totalIncome)}</span>
+          {/* Income */}
+          <div className="pp-card p-5">
+            <SectionHeader>💰 Income</SectionHeader>
+            {store.income.length === 0 && (
+              <p className="text-sm text-slate-400 mb-3">No income added yet.</p>
+            )}
+            <div className="flex flex-col gap-2 mb-3">
+              {store.income.map((inc) => (
+                <div key={inc.id} className="flex gap-2 items-center">
+                  <TInput
+                    value={inc.label}
+                    onChange={(v) => updateIncome(inc.id, "label", v)}
+                    placeholder="e.g. Salary, Freelance"
+                    className="flex-1"
+                  />
+                  <TInput
+                    value={inc.amount}
+                    onChange={(v) => updateIncome(inc.id, "amount", v)}
+                    placeholder="0.00"
+                    type="number"
+                    className="w-28"
+                  />
+                  <DeleteBtn onClick={() => removeIncome(inc.id)} />
+                </div>
+              ))}
             </div>
+            <button onClick={addIncome} className="pp-btn pp-btn-primary text-xs px-3 py-1.5">
+              + Add Income
+            </button>
           </div>
 
-          {/* Fixed breakdown */}
-          <div className="mb-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">Fixed Outgoings</p>
-            {data.fixed.map((f) => (
-              <div key={f.id} className="flex justify-between text-sm py-0.5">
-                <span className="text-slate-600 truncate max-w-40">{f.label || "—"}</span>
-                <span className="tabular-nums text-slate-800">{fmt(parse(f.amount))}</span>
-              </div>
-            ))}
-            <div className="flex justify-between text-sm font-bold pt-1 border-t border-slate-100 mt-1">
-              <span>Total Fixed</span>
-              <span className="text-red-500 tabular-nums">{fmt(totalFixed)}</span>
+          {/* Fixed Outgoings */}
+          <div className="pp-card p-5">
+            <SectionHeader>📋 Fixed Monthly Outgoings</SectionHeader>
+            {store.fixed.length === 0 && (
+              <p className="text-sm text-slate-400 mb-3">No fixed outgoings added yet.</p>
+            )}
+            <div className="flex flex-col gap-3 mb-3">
+              {store.fixed.map((f) => (
+                <div
+                  key={f.id}
+                  className="flex flex-wrap gap-2 items-center border-b border-slate-100 pb-3 last:border-0 last:pb-0"
+                >
+                  <TInput
+                    value={f.label}
+                    onChange={(v) => updateFixed(f.id, "label", v)}
+                    placeholder="Description"
+                    className="flex-1 min-w-32"
+                  />
+                  <TInput
+                    value={f.amount}
+                    onChange={(v) => updateFixed(f.id, "amount", v)}
+                    placeholder="0.00"
+                    type="number"
+                    className="w-24"
+                  />
+                  <DeleteBtn onClick={() => removeFixed(f.id)} />
+                  <TInput
+                    value={f.bank}
+                    onChange={(v) => updateFixed(f.id, "bank", v)}
+                    placeholder="Bank / Card"
+                    className="flex-1 min-w-28"
+                  />
+                  <TInput
+                    value={f.date}
+                    onChange={(v) => updateFixed(f.id, "date", v)}
+                    placeholder="Day (e.g. 1st)"
+                    className="w-28"
+                  />
+                  <select
+                    value={f.category}
+                    onChange={(e) => updateFixed(f.id, "category", e.target.value)}
+                    className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-900 focus:border-teal-400 focus:outline-none focus:ring-1 focus:ring-teal-300 flex-1 min-w-36"
+                  >
+                    {CATEGORIES.map((c) => (
+                      <option key={c} value={c}>
+                        {c || "Category…"}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ))}
             </div>
+            <button onClick={addFixed} className="pp-btn pp-btn-primary text-xs px-3 py-1.5">
+              + Add Fixed Outgoing
+            </button>
           </div>
 
-          {/* After fixed */}
-          <div
-            className="rounded-xl px-4 py-3 mb-4"
-            style={{
-              background: "var(--pp-teal-soft)",
-              border: "1px solid var(--pp-teal-border)",
-            }}
-          >
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-bold text-slate-700">After Fixed</span>
-              <span className={`font-extrabold tabular-nums ${afterFixed >= 0 ? "text-emerald-600" : "text-red-500"}`}>
-                {fmt(afterFixed)}
+          {/* Ad-hoc — resets monthly */}
+          <div className="pp-card p-5">
+            <div className="flex items-start justify-between mb-1">
+              <SectionHeader>📝 Ad-hoc This Month</SectionHeader>
+              <span className="text-xs text-slate-400 rounded-lg px-2 py-1 bg-slate-100">
+                Resets {monthLabel(currentMonth)}
               </span>
             </div>
+            <p className="text-xs text-slate-400 mb-3">
+              One-offs, savings, birthday money — anything not fixed. Clears at the start of each new month.
+            </p>
+            {adhocThisMonth.length === 0 && (
+              <p className="text-sm text-slate-400 mb-3">Nothing added for this month yet.</p>
+            )}
+            <div className="flex flex-col gap-2 mb-3">
+              {adhocThisMonth.map((a) => (
+                <div key={a.id} className="flex gap-2 items-center">
+                  <TInput
+                    value={a.label}
+                    onChange={(v) => updateAdhoc(a.id, "label", v)}
+                    placeholder="e.g. Birthday fund, Savings pot"
+                    className="flex-1"
+                  />
+                  <TInput
+                    value={a.amount}
+                    onChange={(v) => updateAdhoc(a.id, "amount", v)}
+                    placeholder="0.00"
+                    type="number"
+                    className="w-28"
+                  />
+                  <DeleteBtn onClick={() => removeAdhoc(a.id)} />
+                </div>
+              ))}
+            </div>
+            <button onClick={addAdhoc} className="pp-btn pp-btn-primary text-xs px-3 py-1.5">
+              + Add Item
+            </button>
           </div>
+        </div>
 
-          {/* Ad-hoc breakdown */}
-          {data.adhoc.length > 0 && (
+        {/* ── Summary sidebar ── */}
+        <div>
+          <div className="pp-card-strong p-5 sticky top-24">
+            <SectionHeader>📊 Summary</SectionHeader>
+
             <div className="mb-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">Ad-hoc</p>
-              {data.adhoc.map((a) => (
-                <div key={a.id} className="flex justify-between text-sm py-0.5">
-                  <span className="text-slate-600 truncate max-w-40">{a.label || "—"}</span>
-                  <span className="tabular-nums text-slate-800">{fmt(parse(a.amount))}</span>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">Income</p>
+              {store.income.map((i) => (
+                <div key={i.id} className="flex justify-between text-sm py-0.5">
+                  <span className="text-slate-600 truncate max-w-40">{i.label || "—"}</span>
+                  <span className="tabular-nums text-slate-800">{fmt(parse(i.amount))}</span>
                 </div>
               ))}
               <div className="flex justify-between text-sm font-bold pt-1 border-t border-slate-100 mt-1">
-                <span>Total Ad-hoc</span>
-                <span className="text-red-500 tabular-nums">{fmt(totalAdhoc)}</span>
+                <span>Total Income</span>
+                <span className="text-emerald-600 tabular-nums">{fmt(totalIncome)}</span>
               </div>
             </div>
-          )}
 
-          {/* Final totals */}
-          <div className="border-t-2 border-slate-200 pt-4 flex flex-col gap-1">
-            <div className="flex justify-between text-sm py-1">
-              <span className="font-medium text-slate-600">Total Outgoings</span>
-              <span className="font-bold text-red-500 tabular-nums">{fmt(totalOut)}</span>
+            <div className="mb-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">Fixed Outgoings</p>
+              {store.fixed.map((f) => (
+                <div key={f.id} className="flex justify-between text-sm py-0.5">
+                  <span className="text-slate-600 truncate max-w-40">{f.label || "—"}</span>
+                  <span className="tabular-nums text-slate-800">{fmt(parse(f.amount))}</span>
+                </div>
+              ))}
+              <div className="flex justify-between text-sm font-bold pt-1 border-t border-slate-100 mt-1">
+                <span>Total Fixed</span>
+                <span className="text-red-500 tabular-nums">{fmt(totalFixed)}</span>
+              </div>
             </div>
+
             <div
-              className="flex items-center justify-between rounded-xl px-3 py-3 mt-2"
-              style={{
-                background: remaining >= 0 ? "rgba(16,185,129,0.08)" : "rgba(239,68,68,0.08)",
-                border: `1px solid ${remaining >= 0 ? "rgba(16,185,129,0.25)" : "rgba(239,68,68,0.25)"}`,
-              }}
+              className="rounded-xl px-4 py-3 mb-4"
+              style={{ background: "var(--pp-teal-soft)", border: "1px solid var(--pp-teal-border)" }}
             >
-              <span className="text-sm font-bold text-slate-700">Money Left</span>
-              <span
-                className={`text-xl font-extrabold tabular-nums ${
-                  remaining >= 0 ? "text-emerald-600" : "text-red-500"
-                }`}
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-bold text-slate-700">After Fixed</span>
+                <span className={`font-extrabold tabular-nums ${afterFixed >= 0 ? "text-emerald-600" : "text-red-500"}`}>
+                  {fmt(afterFixed)}
+                </span>
+              </div>
+            </div>
+
+            {adhocThisMonth.length > 0 && (
+              <div className="mb-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">Ad-hoc</p>
+                {adhocThisMonth.map((a) => (
+                  <div key={a.id} className="flex justify-between text-sm py-0.5">
+                    <span className="text-slate-600 truncate max-w-40">{a.label || "—"}</span>
+                    <span className="tabular-nums text-slate-800">{fmt(parse(a.amount))}</span>
+                  </div>
+                ))}
+                <div className="flex justify-between text-sm font-bold pt-1 border-t border-slate-100 mt-1">
+                  <span>Total Ad-hoc</span>
+                  <span className="text-red-500 tabular-nums">{fmt(totalAdhoc)}</span>
+                </div>
+              </div>
+            )}
+
+            <div className="border-t-2 border-slate-200 pt-4 flex flex-col gap-1">
+              <div className="flex justify-between text-sm py-1">
+                <span className="font-medium text-slate-600">Total Outgoings</span>
+                <span className="font-bold text-red-500 tabular-nums">{fmt(totalOut)}</span>
+              </div>
+              <div
+                className="flex items-center justify-between rounded-xl px-3 py-3 mt-2"
+                style={{
+                  background: remaining >= 0 ? "rgba(16,185,129,0.08)" : "rgba(239,68,68,0.08)",
+                  border: `1px solid ${remaining >= 0 ? "rgba(16,185,129,0.25)" : "rgba(239,68,68,0.25)"}`,
+                }}
               >
-                {fmt(remaining)}
-              </span>
+                <span className="text-sm font-bold text-slate-700">Money Left</span>
+                <span className={`text-xl font-extrabold tabular-nums ${remaining >= 0 ? "text-emerald-600" : "text-red-500"}`}>
+                  {fmt(remaining)}
+                </span>
+              </div>
             </div>
           </div>
         </div>
