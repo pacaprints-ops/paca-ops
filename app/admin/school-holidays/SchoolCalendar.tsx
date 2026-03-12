@@ -429,7 +429,17 @@ export default function SchoolCalendar({ person }: { person: string }) {
   useEffect(() => {
     try {
       const saved = localStorage.getItem(storageKey);
-      if (saved) setStore(JSON.parse(saved));
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const defaults = makeDefaults(person);
+        setStore({
+          ...parsed,
+          // If no periods saved, load defaults (e.g. first visit after dates were added)
+          periods: parsed.periods?.length > 0 ? parsed.periods : defaults.periods,
+          // notes field didn't exist in earlier versions
+          notes: parsed.notes ?? {},
+        });
+      }
     } catch {}
     setLoaded(true);
   }, [storageKey]);
