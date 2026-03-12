@@ -40,6 +40,25 @@ function monthLabel(key: string) {
     year: "numeric",
   });
 }
+function monthShort(key: string) {
+  const [y, m] = key.split("-");
+  return new Date(Number(y), Number(m) - 1, 1).toLocaleString("en-GB", {
+    month: "short",
+  });
+}
+// All months from January of current year through December next year
+function planningMonths(): string[] {
+  const now = new Date();
+  const months: string[] = [];
+  // Start from Jan this year, go to Dec next year
+  for (let m = 0; m < 12; m++) {
+    months.push(`${now.getFullYear()}-${String(m + 1).padStart(2, "0")}`);
+  }
+  for (let m = 0; m < 12; m++) {
+    months.push(`${now.getFullYear() + 1}-${String(m + 1).padStart(2, "0")}`);
+  }
+  return months;
+}
 function emptyStorage(): BudgetStorage {
   return { income: [], fixed: [], adhoc: {} };
 }
@@ -109,7 +128,9 @@ function SectionHeader({ children }: { children: React.ReactNode }) {
 export default function BudgetPlanner({ person }: { person: string }) {
   const storageKey = `pp-budget-v2-${person}`;
   const currentMonth = monthKey(new Date());
+  const months = planningMonths();
 
+  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
   const [store, setStore] = useState<BudgetStorage>(emptyStorage);
   const [loaded, setLoaded] = useState(false);
 
@@ -126,7 +147,7 @@ export default function BudgetPlanner({ person }: { person: string }) {
   }, [store, loaded, storageKey]);
 
   // Convenience accessors
-  const adhocThisMonth: AdhocItem[] = store.adhoc[currentMonth] ?? [];
+  const adhocThisMonth: AdhocItem[] = store.adhoc[selectedMonth] ?? [];
 
   // ── Updaters ──
 
@@ -139,7 +160,7 @@ export default function BudgetPlanner({ person }: { person: string }) {
   function setAdhoc(items: AdhocItem[]) {
     setStore((s) => ({
       ...s,
-      adhoc: { ...s.adhoc, [currentMonth]: items },
+      adhoc: { ...s.adhoc, [selectedMonth]: items },
     }));
   }
 
@@ -191,12 +212,42 @@ export default function BudgetPlanner({ person }: { person: string }) {
 
   return (
     <div>
-      {/* Month badge */}
-      <div className="inline-flex items-center gap-2 rounded-xl px-4 py-2 mb-6 text-sm font-semibold text-slate-700"
-        style={{ background: "var(--pp-teal-soft)", border: "1px solid var(--pp-teal-border)" }}>
-        <span>📅</span>
-        <span>{monthLabel(currentMonth)}</span>
-        <span className="text-slate-400 font-normal text-xs">— ad-hoc resets each month</span>
+      {/* Month picker */}
+      <div className="pp-card p-4 mb-6">
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-3">Select Month</p>
+        {/* Group by year */}
+        {[...new Set(months.map((m) => m.split("-")[0]))].map((year) => (
+          <div key={year} className="mb-3 last:mb-0">
+            <p className="text-xs text-slate-400 font-medium mb-2">{year}</p>
+            <div className="flex flex-wrap gap-1.5">
+              {months
+                .filter((m) => m.startsWith(year))
+                .map((m) => {
+                  const isCurrent = m === currentMonth;
+                  const isSelected = m === selectedMonth;
+                  return (
+                    <button
+                      key={m}
+                      onClick={() => setSelectedMonth(m)}
+                      className={[
+                        "rounded-lg px-3 py-1.5 text-sm font-semibold transition",
+                        isSelected
+                          ? "bg-slate-900 text-white shadow-sm"
+                          : isCurrent
+                          ? "text-slate-900 ring-2 ring-slate-900/20 hover:bg-slate-100"
+                          : "text-slate-600 hover:bg-slate-100",
+                      ].join(" ")}
+                    >
+                      {monthShort(m)}
+                      {isCurrent && !isSelected && (
+                        <span className="ml-1 text-[10px] text-teal-600 font-bold">●</span>
+                      )}
+                    </button>
+                  );
+                })}
+            </div>
+          </div>
+        ))}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -296,14 +347,14 @@ export default function BudgetPlanner({ person }: { person: string }) {
             <div className="flex items-start justify-between mb-1">
               <SectionHeader>📝 Ad-hoc This Month</SectionHeader>
               <span className="text-xs text-slate-400 rounded-lg px-2 py-1 bg-slate-100">
-                Resets {monthLabel(currentMonth)}
+                {monthLabel(selectedMonth)}
               </span>
             </div>
             <p className="text-xs text-slate-400 mb-3">
-              One-offs, savings, birthday money — anything not fixed. Clears at the start of each new month.
+              One-offs, savings, birthday money — anything not fixed. Each month has its own list.
             </p>
             {adhocThisMonth.length === 0 && (
-              <p className="text-sm text-slate-400 mb-3">Nothing added for this month yet.</p>
+              <p className="text-sm text-slate-400 mb-3">Nothing added for {monthLabel(selectedMonth)} yet.</p>
             )}
             <div className="flex flex-col gap-2 mb-3">
               {adhocThisMonth.map((a) => (
