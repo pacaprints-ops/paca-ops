@@ -182,7 +182,9 @@ function DayRow({
   children,
   carers,
   assignments,
+  notes,
   onChange,
+  onNoteChange,
 }: {
   date: string;
   periodLabels: { label: string; type: PeriodType }[];
