@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 type ReminderItem = { id: string; text: string; done: boolean };
 type ReminderSection = { id: string; title: string; items: ReminderItem[] };
 
-const STORAGE_KEY = "pp-reminders-v2";
+const STORAGE_KEY = "pp-reminders-v3";
 
 const DEFAULT_SECTIONS: ReminderSection[] = [
   {
@@ -24,6 +24,7 @@ const DEFAULT_SECTIONS: ReminderSection[] = [
     title: "Other",
     items: [
       { id: "vercel-github", text: "Fix Vercel auto-deploy — paca-ops project needs GitHub properly wired so alias doesn't detach on each deploy", done: false },
+      { id: "menu-planner-vicky", text: "Vicky to test the menu planner cycle", done: false },
     ],
   },
 ];
