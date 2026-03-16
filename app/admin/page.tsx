@@ -7,6 +7,15 @@ type Tool = {
   icon: string;
 };
 
+const sharedTools: Tool[] = [
+  {
+    title: "Reminders",
+    description: "Things to come back to — tick off as you go.",
+    href: "/admin/reminders",
+    icon: "📌",
+  },
+];
+
 const pacaTools: Tool[] = [
   {
     title: "Platform Costs",
@@ -95,6 +104,7 @@ export default function AdminPage() {
       <p className="text-slate-500 text-sm mb-8">Internal tools — just for us.</p>
 
       <div className="flex flex-col gap-10">
+        <PersonSection name="Shared" tools={sharedTools} />
         <PersonSection name="Paca" tools={pacaTools} />
         <PersonSection name="Carrie" tools={carrieTools} />
         <PersonSection name="Vicky" tools={vickyTools} />
