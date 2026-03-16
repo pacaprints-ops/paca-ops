@@ -108,11 +108,13 @@ export default function OrderFlagsQuickToggle({
           disabled={saving}
           onClick={toggleAttention}
           className={`rounded-md border px-2 py-1 text-xs font-semibold disabled:opacity-60 ${
-            localAttention ? "bg-red-50 border-red-300 text-red-700" : "bg-white text-gray-500"
+            localAttention
+              ? "bg-red-600 text-white border-red-600 animate-pulse"
+              : "bg-white text-gray-400"
           }`}
-          title="Needs attention"
+          title={localAttention ? "Flagged — awaiting payout" : "Flag as needs attention"}
         >
-          🚩
+          🚩{localAttention ? " Awaiting" : ""}
         </button>
       ) : null}
     </div>

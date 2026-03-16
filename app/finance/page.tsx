@@ -236,11 +236,12 @@ export default function FinancePage() {
     };
     setSettings(safeSettings);
 
-    // orders summary (gross/fees/payout)
+    // orders summary — settled only, so tax reflects money actually received
     const { data: oData, error: oErr } = await supabase.rpc("finance_orders_summary", {
       p_from: range.start,
       p_to: range.endExclusive,
       p_platform: null,
+      p_settled_only: true,
     });
     if (oErr) {
       setErrorMsg(oErr.message);

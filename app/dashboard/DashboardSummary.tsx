@@ -152,6 +152,9 @@ export default function DashboardSummary() {
     }>
   >([]);
 
+  type LowStockItem = { name: string; qty: number; reorderLevel: number; status: "out" | "low" };
+  const [lowStockItems, setLowStockItems] = useState<LowStockItem[]>([]);
+
   const [loading, setLoading] = useState<boolean>(true);
   const [errorMsg, setErrorMsg] = useState<string>("");
 
@@ -291,17 +294,21 @@ export default function DashboardSummary() {
       onHandByMaterial.set(mid, (onHandByMaterial.get(mid) ?? 0) + qty);
     }
 
-    let count = 0;
+    const items: LowStockItem[] = [];
     for (const m of materials) {
       if (!m.track_stock) continue;
       const rl = m.reorder_level === null ? null : toNumber(m.reorder_level);
       if (rl === null || !Number.isFinite(rl)) continue;
 
       const onHand = onHandByMaterial.get(m.id) ?? 0;
-      if (onHand < rl) count += 1;
+      if (onHand < rl) {
+        items.push({ name: m.name, qty: onHand, reorderLevel: rl, status: onHand === 0 ? "out" : "low" });
+      }
     }
 
-    setLowStockCount(count);
+    items.sort((a, b) => a.qty - b.qty);
+    setLowStockItems(items);
+    setLowStockCount(items.length);
   }
 
   async function loadMonthlyTable() {
@@ -534,13 +541,26 @@ export default function DashboardSummary() {
 
       {/* Second row */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        {/* ✅ Low stock now goes pale red if >0 */}
+        {/* Low stock — shows each material with its quantity */}
         <div className={lowCardClasses}>
           <div className="text-sm font-extrabold text-slate-900">Low Stock Alert</div>
-          <div className={`mt-4 text-3xl font-extrabold ${lowStockCount > 0 ? "text-red-700" : "text-slate-900"}`}>
-            {formatInt(lowStockCount)}
+          {lowStockItems.length === 0 ? (
+            <div className="mt-4 text-3xl font-extrabold text-slate-900">—</div>
+          ) : (
+            <ul className="mt-3 space-y-1 text-left">
+              {lowStockItems.map((item) => (
+                <li key={item.name} className="flex items-center justify-between gap-2 text-sm">
+                  <span className="font-medium text-slate-800 truncate">{item.name}</span>
+                  <span className={`font-extrabold tabular-nums shrink-0 ${item.status === "out" ? "text-red-700" : "text-amber-600"}`}>
+                    {formatInt(item.qty)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="mt-2 text-xs text-slate-500">
+            <span className="text-red-700 font-semibold">Red</span> = out &nbsp;·&nbsp; <span className="text-amber-600 font-semibold">Amber</span> = low
           </div>
-          <div className="mt-2 text-xs text-slate-600">Count of raw materials where on-hand &lt; reorder level</div>
         </div>
 
         <div className="pp-card p-5 text-center">

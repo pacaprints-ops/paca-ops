@@ -301,7 +301,11 @@ export default async function OrdersPage({
 
           <tbody>
             {rows.map((o) => {
-              const rowClass = o.is_refunded ? "bg-gray-50 text-gray-500" : "";
+              const rowClass = o.is_refunded
+                ? "bg-gray-50 text-gray-500"
+                : o.needs_attention
+                ? "bg-amber-50 border-l-4 border-l-amber-400"
+                : "";
 
               const gross = Number(o.gross_revenue ?? 0);
               const fees = Number(o.platform_fees ?? 0);
