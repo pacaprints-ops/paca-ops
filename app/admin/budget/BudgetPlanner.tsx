@@ -408,79 +408,41 @@ export default function BudgetPlanner({ person }: { person: string }) {
           <div className="pp-card-strong p-5 sticky top-24">
             <SectionHeader>📊 Summary</SectionHeader>
 
-            <div className="mb-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">Income</p>
-              {store.income.map((i) => (
-                <div key={i.id} className="flex justify-between text-sm py-0.5">
-                  <span className="text-slate-600 truncate max-w-40">{i.label || "—"}</span>
-                  <span className="tabular-nums text-slate-800">{fmt(parse(i.amount))}</span>
-                </div>
-              ))}
-              <div className="flex justify-between text-sm font-bold pt-1 border-t border-slate-100 mt-1">
-                <span>Total Income</span>
-                <span className="text-emerald-600 tabular-nums">{fmt(totalIncome)}</span>
+            <div className="flex flex-col gap-2 mb-4">
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-600">Income</span>
+                <span className="font-bold text-emerald-600 tabular-nums">{fmt(totalIncome)}</span>
               </div>
-            </div>
-
-            <div className="mb-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">Fixed Outgoings</p>
-              {store.fixed.map((f) => (
-                <div key={f.id} className="flex justify-between text-sm py-0.5">
-                  <span className="text-slate-600 truncate max-w-40">{f.label || "—"}</span>
-                  <span className="tabular-nums text-slate-800">{fmt(parse(f.amount))}</span>
-                </div>
-              ))}
-              <div className="flex justify-between text-sm font-bold pt-1 border-t border-slate-100 mt-1">
-                <span>Total Fixed</span>
-                <span className="text-red-500 tabular-nums">{fmt(totalFixed)}</span>
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-600">Fixed Outgoings</span>
+                <span className="font-bold text-red-500 tabular-nums">{fmt(totalFixed)}</span>
               </div>
-            </div>
-
-            <div
-              className="rounded-xl px-4 py-3 mb-4"
-              style={{ background: "var(--pp-teal-soft)", border: "1px solid var(--pp-teal-border)" }}
-            >
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-bold text-slate-700">After Fixed</span>
-                <span className={`font-extrabold tabular-nums ${afterFixed >= 0 ? "text-emerald-600" : "text-red-500"}`}>
-                  {fmt(afterFixed)}
-                </span>
+              <div className="flex justify-between text-sm font-bold border-t border-slate-100 pt-2 mt-1">
+                <span className="text-slate-700">Left after fixed</span>
+                <span className={`tabular-nums ${afterFixed >= 0 ? "text-emerald-600" : "text-red-500"}`}>{fmt(afterFixed)}</span>
               </div>
             </div>
 
             {adhocThisMonth.length > 0 && (
-              <div className="mb-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">Ad-hoc</p>
-                {adhocThisMonth.map((a) => (
-                  <div key={a.id} className="flex justify-between text-sm py-0.5">
-                    <span className="text-slate-600 truncate max-w-40">{a.label || "—"}</span>
-                    <span className="tabular-nums text-slate-800">{fmt(parse(a.amount))}</span>
-                  </div>
-                ))}
-                <div className="flex justify-between text-sm font-bold pt-1 border-t border-slate-100 mt-1">
-                  <span>Total Ad-hoc</span>
-                  <span className="text-red-500 tabular-nums">{fmt(totalAdhoc)}</span>
+              <div className="flex flex-col gap-2 mb-4 border-t border-slate-100 pt-4">
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-600">Ad-hoc</span>
+                  <span className="font-bold text-red-500 tabular-nums">{fmt(totalAdhoc)}</span>
                 </div>
               </div>
             )}
 
-            <div className="border-t-2 border-slate-200 pt-4 flex flex-col gap-1">
-              <div className="flex justify-between text-sm py-1">
-                <span className="font-medium text-slate-600">Total Outgoings</span>
-                <span className="font-bold text-red-500 tabular-nums">{fmt(totalOut)}</span>
-              </div>
-              <div
-                className="flex items-center justify-between rounded-xl px-3 py-3 mt-2"
-                style={{
-                  background: remaining >= 0 ? "rgba(16,185,129,0.08)" : "rgba(239,68,68,0.08)",
-                  border: `1px solid ${remaining >= 0 ? "rgba(16,185,129,0.25)" : "rgba(239,68,68,0.25)"}`,
-                }}
-              >
-                <span className="text-sm font-bold text-slate-700">Money Left</span>
-                <span className={`text-xl font-extrabold tabular-nums ${remaining >= 0 ? "text-emerald-600" : "text-red-500"}`}>
-                  {fmt(remaining)}
-                </span>
-              </div>
+            <div
+              className="flex items-center justify-between rounded-xl px-3 py-3 border-t-2 border-slate-200 pt-4 mt-2"
+              style={{
+                background: remaining >= 0 ? "rgba(16,185,129,0.08)" : "rgba(239,68,68,0.08)",
+                border: `1px solid ${remaining >= 0 ? "rgba(16,185,129,0.25)" : "rgba(239,68,68,0.25)"}`,
+              }}
+            >
+              <span className="text-sm font-bold text-slate-700">Money Left</span>
+              <span className={`text-xl font-extrabold tabular-nums ${remaining >= 0 ? "text-emerald-600" : "text-red-500"}`}>
+                {fmt(remaining)}
+              </span>
             </div>
           </div>
         </div>
