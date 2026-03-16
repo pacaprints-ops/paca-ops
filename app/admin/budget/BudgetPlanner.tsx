@@ -133,6 +133,7 @@ export default function BudgetPlanner({ person }: { person: string }) {
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
   const [store, setStore] = useState<BudgetStorage>(emptyStorage);
   const [loaded, setLoaded] = useState(false);
+  const [fixedOpen, setFixedOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -287,59 +288,79 @@ export default function BudgetPlanner({ person }: { person: string }) {
 
           {/* Fixed Outgoings */}
           <div className="pp-card p-5">
-            <SectionHeader>📋 Fixed Monthly Outgoings</SectionHeader>
-            {store.fixed.length === 0 && (
-              <p className="text-sm text-slate-400 mb-3">No fixed outgoings added yet.</p>
-            )}
-            <div className="flex flex-col gap-3 mb-3">
-              {store.fixed.map((f) => (
-                <div
-                  key={f.id}
-                  className="flex flex-wrap gap-2 items-center border-b border-slate-100 pb-3 last:border-0 last:pb-0"
-                >
-                  <TInput
-                    value={f.label}
-                    onChange={(v) => updateFixed(f.id, "label", v)}
-                    placeholder="Description"
-                    className="flex-1 min-w-32"
-                  />
-                  <TInput
-                    value={f.amount}
-                    onChange={(v) => updateFixed(f.id, "amount", v)}
-                    placeholder="0.00"
-                    type="number"
-                    className="w-24"
-                  />
-                  <DeleteBtn onClick={() => removeFixed(f.id)} />
-                  <TInput
-                    value={f.bank}
-                    onChange={(v) => updateFixed(f.id, "bank", v)}
-                    placeholder="Bank / Card"
-                    className="flex-1 min-w-28"
-                  />
-                  <TInput
-                    value={f.date}
-                    onChange={(v) => updateFixed(f.id, "date", v)}
-                    placeholder="Day (e.g. 1st)"
-                    className="w-28"
-                  />
-                  <select
-                    value={f.category}
-                    onChange={(e) => updateFixed(f.id, "category", e.target.value)}
-                    className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-900 focus:border-teal-400 focus:outline-none focus:ring-1 focus:ring-teal-300 flex-1 min-w-36"
-                  >
-                    {CATEGORIES.map((c) => (
-                      <option key={c} value={c}>
-                        {c || "Category…"}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ))}
-            </div>
-            <button onClick={addFixed} className="pp-btn pp-btn-primary text-xs px-3 py-1.5">
-              + Add Fixed Outgoing
+            <button
+              onClick={() => setFixedOpen((o) => !o)}
+              className="w-full flex items-center justify-between mb-0 group"
+            >
+              <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500 group-hover:text-slate-700 transition">
+                📋 Fixed Monthly Outgoings
+              </h2>
+              <div className="flex items-center gap-3">
+                {!fixedOpen && totalFixed > 0 && (
+                  <span className="text-sm font-bold text-red-500 tabular-nums">{fmt(totalFixed)}</span>
+                )}
+                <span className="text-slate-400 group-hover:text-slate-600 transition text-xs font-semibold">
+                  {fixedOpen ? "▲ collapse" : "▼ edit"}
+                </span>
+              </div>
             </button>
+
+            {fixedOpen && (
+              <div className="mt-3">
+                {store.fixed.length === 0 && (
+                  <p className="text-sm text-slate-400 mb-3">No fixed outgoings added yet.</p>
+                )}
+                <div className="flex flex-col gap-3 mb-3">
+                  {store.fixed.map((f) => (
+                    <div
+                      key={f.id}
+                      className="flex flex-wrap gap-2 items-center border-b border-slate-100 pb-3 last:border-0 last:pb-0"
+                    >
+                      <TInput
+                        value={f.label}
+                        onChange={(v) => updateFixed(f.id, "label", v)}
+                        placeholder="Description"
+                        className="flex-1 min-w-32"
+                      />
+                      <TInput
+                        value={f.amount}
+                        onChange={(v) => updateFixed(f.id, "amount", v)}
+                        placeholder="0.00"
+                        type="number"
+                        className="w-24"
+                      />
+                      <DeleteBtn onClick={() => removeFixed(f.id)} />
+                      <TInput
+                        value={f.bank}
+                        onChange={(v) => updateFixed(f.id, "bank", v)}
+                        placeholder="Bank / Card"
+                        className="flex-1 min-w-28"
+                      />
+                      <TInput
+                        value={f.date}
+                        onChange={(v) => updateFixed(f.id, "date", v)}
+                        placeholder="Day (e.g. 1st)"
+                        className="w-28"
+                      />
+                      <select
+                        value={f.category}
+                        onChange={(e) => updateFixed(f.id, "category", e.target.value)}
+                        className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-900 focus:border-teal-400 focus:outline-none focus:ring-1 focus:ring-teal-300 flex-1 min-w-36"
+                      >
+                        {CATEGORIES.map((c) => (
+                          <option key={c} value={c}>
+                            {c || "Category…"}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ))}
+                </div>
+                <button onClick={addFixed} className="pp-btn pp-btn-primary text-xs px-3 py-1.5">
+                  + Add Fixed Outgoing
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Ad-hoc — resets monthly */}
