@@ -32,6 +32,7 @@ type OrderRow = {
   cogs_override?: any;
 
   needs_attention?: boolean;
+  attention_note?: string | null;
 };
 
 function formatGBP(v: any) {
@@ -392,6 +393,7 @@ export default async function OrdersPage({
                       isRefunded={!!o.is_refunded}
                       refundNotes={o.refund_notes}
                       needsAttention={!!o.needs_attention}
+                      attentionNote={o.attention_note ?? null}
                     />
                   </td>
 
