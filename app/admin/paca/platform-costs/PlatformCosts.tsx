@@ -104,7 +104,7 @@ export default function PlatformCosts() {
             {platforms.map((p) => (
               <div
                 key={p.id}
-                className={`flex items-center gap-3 rounded-xl border p-3 transition ${
+                className={`flex flex-wrap items-center gap-3 rounded-xl border p-3 transition ${
                   p.active ? "border-slate-200 bg-white" : "border-slate-100 bg-slate-50 opacity-60"
                 }`}
               >
@@ -127,34 +127,36 @@ export default function PlatformCosts() {
                   value={p.name}
                   onChange={(v) => update(p.id, "name", v)}
                   placeholder="Platform name (e.g. Etsy, TikTok)"
-                  className="flex-1"
+                  className="flex-1 min-w-0"
                 />
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">£</span>
-                  <input
-                    type="number"
-                    value={p.cost}
-                    onChange={(e) => update(p.id, "cost", e.target.value)}
-                    placeholder="0.00"
-                    className="rounded-lg border border-slate-200 bg-white pl-7 pr-3 py-1.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-teal-400 focus:outline-none focus:ring-1 focus:ring-teal-300 w-28"
-                  />
+                <div className="flex items-center gap-3 flex-wrap">
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">£</span>
+                    <input
+                      type="number"
+                      value={p.cost}
+                      onChange={(e) => update(p.id, "cost", e.target.value)}
+                      placeholder="0.00"
+                      className="rounded-lg border border-slate-200 bg-white pl-7 pr-3 py-1.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-teal-400 focus:outline-none focus:ring-1 focus:ring-teal-300 w-28"
+                    />
+                  </div>
+                  <select
+                    value={p.paidBy}
+                    onChange={(e) => update(p.id, "paidBy", e.target.value as PaidBy)}
+                    className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-900 focus:border-teal-400 focus:outline-none focus:ring-1 focus:ring-teal-300 w-28"
+                  >
+                    <option value="">Paid by…</option>
+                    <option value="Business">Business</option>
+                    <option value="Carrie">Carrie</option>
+                    <option value="Vicky">Vicky</option>
+                  </select>
+                  <button
+                    onClick={() => remove(p.id)}
+                    className="rounded-lg px-2 py-1.5 text-slate-400 hover:bg-red-50 hover:text-red-500 transition text-base leading-none"
+                  >
+                    ✕
+                  </button>
                 </div>
-                <select
-                  value={p.paidBy}
-                  onChange={(e) => update(p.id, "paidBy", e.target.value as PaidBy)}
-                  className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-900 focus:border-teal-400 focus:outline-none focus:ring-1 focus:ring-teal-300 w-28"
-                >
-                  <option value="">Paid by…</option>
-                  <option value="Business">Business</option>
-                  <option value="Carrie">Carrie</option>
-                  <option value="Vicky">Vicky</option>
-                </select>
-                <button
-                  onClick={() => remove(p.id)}
-                  className="rounded-lg px-2 py-1.5 text-slate-400 hover:bg-red-50 hover:text-red-500 transition text-base leading-none"
-                >
-                  ✕
-                </button>
               </div>
             ))}
           </div>

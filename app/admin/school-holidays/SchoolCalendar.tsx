@@ -230,7 +230,7 @@ function DayRow({
 
       {/* Child assignments */}
       {!weekend && (
-        <div className="flex flex-wrap gap-3 ml-auto">
+        <div className="flex flex-col gap-2 w-full sm:flex-row sm:flex-wrap sm:w-auto sm:ml-auto">
           {children.map((child) => {
             const carerId = assignments[child] ?? "";
             const carer = carers.find((c) => c.id === carerId);
@@ -263,7 +263,7 @@ function DayRow({
                   value={notes[child] ?? ""}
                   onChange={(e) => onNoteChange(child, e.target.value)}
                   placeholder="Notes…"
-                  className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 placeholder:text-slate-300 focus:border-teal-400 focus:outline-none focus:ring-1 focus:ring-teal-300 w-36"
+                  className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 placeholder:text-slate-300 focus:border-teal-400 focus:outline-none focus:ring-1 focus:ring-teal-300 flex-1 min-w-0"
                 />
               </div>
             );
