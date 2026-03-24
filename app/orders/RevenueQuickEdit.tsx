@@ -57,7 +57,7 @@ export default function RevenueQuickEdit({
     <>
       <button
         type="button"
-        className="ml-2 rounded-md border bg-white px-2 py-1 text-xs hover:bg-gray-50"
+        className="cursor-pointer underline-offset-2 hover:underline hover:text-teal-700 transition"
         onClick={() => {
           setVal(String(currentRevenue ?? 0));
           setErrorMsg("");
@@ -65,7 +65,7 @@ export default function RevenueQuickEdit({
         }}
         title="Quick edit revenue"
       >
-        Edit £
+        {fmtGBP(currentRevenue)}
       </button>
 
       {open ? (

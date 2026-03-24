@@ -331,7 +331,6 @@ export default async function OrdersPage({
                   </td>
 
                   <td className="px-4 py-3 whitespace-nowrap hidden sm:table-cell">
-                    {o.platform ?? "—"}
                     <PlatformQuickEdit orderId={o.id} currentPlatform={o.platform ?? null} />
                   </td>
 
@@ -342,7 +341,6 @@ export default async function OrdersPage({
                   <td className="px-4 py-3 whitespace-nowrap hidden md:table-cell">{o.customer_name ?? "—"}</td>
 
                   <td className="px-4 py-3 whitespace-nowrap">
-                    {formatGBP(gross)}
                     <MoneyQuickEdit
                       orderId={o.id}
                       currentValue={gross}
@@ -354,7 +352,6 @@ export default async function OrdersPage({
                   </td>
 
                   <td className="px-4 py-3 whitespace-nowrap hidden sm:table-cell">
-                    {formatGBP(fees)}
                     <MoneyQuickEdit
                       orderId={o.id}
                       currentValue={fees}
@@ -366,12 +363,10 @@ export default async function OrdersPage({
                   </td>
 
                   <td className="px-4 py-3 whitespace-nowrap">
-                    {formatGBP(payout)}
                     <RevenueQuickEdit orderId={o.id} currentRevenue={o.revenue} />
                   </td>
 
                   <td className="px-4 py-3 whitespace-nowrap hidden sm:table-cell">
-                    {formatGBP(shipping)}
                     <MoneyQuickEdit
                       orderId={o.id}
                       currentValue={shipping}

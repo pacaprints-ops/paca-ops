@@ -48,7 +48,7 @@ export default function PlatformQuickEdit({
     <>
       <button
         type="button"
-        className="ml-2 rounded-md border bg-white px-2 py-1 text-xs hover:bg-gray-50"
+        className="cursor-pointer underline-offset-2 hover:underline hover:text-teal-700 transition"
         onClick={() => {
           setPlatform(currentPlatform ?? "tiktok");
           setCustom("");
@@ -57,7 +57,7 @@ export default function PlatformQuickEdit({
         }}
         title="Quick edit platform"
       >
-        Edit
+        {currentPlatform ?? "—"}
       </button>
 
       {open ? (

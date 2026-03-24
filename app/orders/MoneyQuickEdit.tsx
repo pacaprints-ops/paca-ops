@@ -58,7 +58,7 @@ export default function MoneyQuickEdit({
     <>
       <button
         type="button"
-        className="ml-2 rounded-md border bg-white px-2 py-1 text-xs hover:bg-gray-50"
+        className="cursor-pointer underline-offset-2 hover:underline hover:text-teal-700 transition"
         onClick={() => {
           setVal(String(currentValue ?? 0));
           setErrorMsg("");
@@ -66,7 +66,7 @@ export default function MoneyQuickEdit({
         }}
         title={title}
       >
-        Edit £
+        {fmtGBP(currentValue)}
       </button>
 
       {open ? (
