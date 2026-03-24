@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { getUserData, setUserData } from "../../lib/userStore";
+import { getOrMigrateUserData, setUserData } from "../../lib/userStore";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 type Income = { id: string; label: string; amount: string };
@@ -138,7 +138,7 @@ export default function BudgetPlanner({ person }: { person: string }) {
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    getUserData<BudgetStorage>(storageKey).then((saved) => {
+    getOrMigrateUserData<BudgetStorage>(storageKey).then((saved) => {
       if (saved) setStore(saved);
       setLoaded(true);
     });

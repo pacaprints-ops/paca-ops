@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { getUserData, setUserData } from "../../lib/userStore";
+import { getOrMigrateUserData, setUserData } from "../../lib/userStore";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 type Activity = { id: string; label: string; notes: string; cost: string; done: boolean };
@@ -264,7 +264,7 @@ export default function HolidayPlanner({ person }: { person: string }) {
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    getUserData<HolidayPeriod[]>(storageKey).then((saved) => {
+    getOrMigrateUserData<HolidayPeriod[]>(storageKey).then((saved) => {
       if (saved) setPeriods(saved);
       setLoaded(true);
     });

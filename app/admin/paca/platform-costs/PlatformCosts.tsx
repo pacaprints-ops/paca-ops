@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { getUserData, setUserData } from "../../../lib/userStore";
+import { getOrMigrateUserData, setUserData } from "../../../lib/userStore";
 
 type PaidBy = "Business" | "Carrie" | "Vicky" | "";
 
@@ -54,7 +54,7 @@ export default function PlatformCosts() {
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    getUserData<Platform[]>(storageKey).then((saved) => {
+    getOrMigrateUserData<Platform[]>(storageKey).then((saved) => {
       if (saved) setPlatforms(saved);
       setLoaded(true);
     });
