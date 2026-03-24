@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { getUserData, setUserData } from "../../lib/userStore";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 type Activity = { id: string; label: string; notes: string; cost: string; done: boolean };
@@ -260,17 +261,19 @@ export default function HolidayPlanner({ person }: { person: string }) {
   const storageKey = `pp-holidays-v1-${person}`;
   const [periods, setPeriods] = useState<HolidayPeriod[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(storageKey);
-      if (saved) setPeriods(JSON.parse(saved));
-    } catch {}
-    setLoaded(true);
+    getUserData<HolidayPeriod[]>(storageKey).then((saved) => {
+      if (saved) setPeriods(saved);
+      setLoaded(true);
+    });
   }, [storageKey]);
 
   useEffect(() => {
-    if (loaded) localStorage.setItem(storageKey, JSON.stringify(periods));
+    if (!loaded) return;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => setUserData(storageKey, periods), 600);
   }, [periods, loaded, storageKey]);
 
   function addPeriod() {

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { getUserData, setUserData } from "../../../lib/userStore";
 
 type PaidBy = "Business" | "Carrie" | "Vicky" | "";
 
@@ -50,17 +51,19 @@ export default function PlatformCosts() {
   const storageKey = "pp-platform-costs-v1";
   const [platforms, setPlatforms] = useState<Platform[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(storageKey);
-      if (saved) setPlatforms(JSON.parse(saved));
-    } catch {}
-    setLoaded(true);
+    getUserData<Platform[]>(storageKey).then((saved) => {
+      if (saved) setPlatforms(saved);
+      setLoaded(true);
+    });
   }, []);
 
   useEffect(() => {
-    if (loaded) localStorage.setItem(storageKey, JSON.stringify(platforms));
+    if (!loaded) return;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => setUserData(storageKey, platforms), 600);
   }, [platforms, loaded]);
 
   function add() {
