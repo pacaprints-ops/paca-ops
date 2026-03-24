@@ -109,6 +109,16 @@ export default function AdminPage() {
         <PersonSection name="Carrie" tools={carrieTools} />
         <PersonSection name="Vicky" tools={vickyTools} />
       </div>
+
+      <div className="mt-12 pt-6 border-t border-slate-100">
+        <Link
+          href="/logout"
+          prefetch={false}
+          className="text-sm text-slate-400 hover:text-slate-600 transition"
+        >
+          Log out
+        </Link>
+      </div>
     </main>
   );
 }
