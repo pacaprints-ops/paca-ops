@@ -189,10 +189,20 @@ export default function CreateProductPage() {
   }
 
   function downloadImage(img: GeneratedImage, index: number) {
+    const byteCharacters = atob(img.imageBase64);
+    const byteArray = new Uint8Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteArray[i] = byteCharacters.charCodeAt(i);
+    }
+    const blob = new Blob([byteArray], { type: img.mimeType });
+    const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = `data:${img.mimeType};base64,${img.imageBase64}`;
+    a.href = url;
     a.download = `${productName.replace(/\s+/g, "-").toLowerCase()}-image-${index + 1}.png`;
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   }
 
   function copyCopyToClipboard() {
