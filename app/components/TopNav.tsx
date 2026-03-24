@@ -14,6 +14,7 @@ const tabs = [
 
   // ✅ NEW PAGE
   { label: "Seasonal Planner", href: "/seasonal" },
+  { label: "Create Product", href: "/create-product" },
   { label: "Admin", href: "/admin" },
 ];
 
