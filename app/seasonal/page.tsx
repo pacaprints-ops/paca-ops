@@ -61,15 +61,15 @@ export default function SeasonalPage() {
         <div className="text-sm font-extrabold text-slate-900 mb-3">Dated events</div>
 
         <div className="-mx-5 overflow-x-auto px-5" style={{ WebkitOverflowScrolling: "touch" }}>
-          <table className="min-w-[1050px] w-full text-sm">
+          <table className="w-full text-sm">
             <thead>
               <tr className="text-left border-b bg-slate-50">
                 <th className="px-3 py-2 font-semibold">Event</th>
                 <th className="px-3 py-2 font-semibold">Holiday date</th>
                 <th className="px-3 py-2 font-semibold">Be ready by</th>
                 <th className="px-3 py-2 font-semibold">Countdown</th>
-                <th className="px-3 py-2 font-semibold">Ideas</th>
-                <th className="px-3 py-2 font-semibold">Notes</th>
+                <th className="hidden md:table-cell px-3 py-2 font-semibold">Ideas</th>
+                <th className="hidden md:table-cell px-3 py-2 font-semibold">Notes</th>
               </tr>
             </thead>
             <tbody>
@@ -97,9 +97,9 @@ export default function SeasonalPage() {
 
                     <td className="px-3 py-2 whitespace-nowrap">{holidayPassed ? "—" : `${e.untilHoliday} days`}</td>
 
-                    <td className="px-3 py-2 text-slate-700">{e.ideas ?? "—"}</td>
+                    <td className="hidden md:table-cell px-3 py-2 text-slate-700">{e.ideas ?? "—"}</td>
 
-                    <td className="px-3 py-2 text-slate-700">{e.notes ?? "—"}</td>
+                    <td className="hidden md:table-cell px-3 py-2 text-slate-700">{e.notes ?? "—"}</td>
                   </tr>
                 );
               })}

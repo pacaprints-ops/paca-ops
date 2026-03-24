@@ -633,18 +633,18 @@ export default function DashboardSummary() {
         ) : (
           <div className="-mx-5 overflow-x-auto px-5" style={{ WebkitOverflowScrolling: "touch" }}>
             <div className="pp-table">
-              <table className="min-w-[980px]">
+              <table className="w-full">
                 <thead>
                   <tr>
                     <th>Month</th>
                     <th>{yearA} Orders</th>
                     <th>{yearA} Revenue</th>
-                    <th>{yearA} Cost</th>
+                    <th className="hidden sm:table-cell">{yearA} Cost</th>
                     <th>{yearA} Profit</th>
-                    <th>{yearB} Orders</th>
-                    <th>{yearB} Revenue</th>
-                    <th>{yearB} Cost</th>
-                    <th>{yearB} Profit</th>
+                    <th className="hidden md:table-cell">{yearB} Orders</th>
+                    <th className="hidden md:table-cell">{yearB} Revenue</th>
+                    <th className="hidden md:table-cell">{yearB} Cost</th>
+                    <th className="hidden md:table-cell">{yearB} Profit</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -654,13 +654,13 @@ export default function DashboardSummary() {
 
                       <td>{formatInt(r.a.orders)}</td>
                       <td>{formatGBP(r.a.revenue)}</td>
-                      <td>{formatGBP(r.a.cogs)}</td>
+                      <td className="hidden sm:table-cell">{formatGBP(r.a.cogs)}</td>
                       <td>{formatGBP(r.a.profit)}</td>
 
-                      <td>{formatInt(r.b.orders)}</td>
-                      <td>{formatGBP(r.b.revenue)}</td>
-                      <td>{formatGBP(r.b.cogs)}</td>
-                      <td>{formatGBP(r.b.profit)}</td>
+                      <td className="hidden md:table-cell">{formatInt(r.b.orders)}</td>
+                      <td className="hidden md:table-cell">{formatGBP(r.b.revenue)}</td>
+                      <td className="hidden md:table-cell">{formatGBP(r.b.cogs)}</td>
+                      <td className="hidden md:table-cell">{formatGBP(r.b.profit)}</td>
                     </tr>
                   ))}
                 </tbody>
