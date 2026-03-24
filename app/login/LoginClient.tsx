@@ -32,8 +32,9 @@ export default function LoginClient() {
 
     if (error) return setMsg(error.message);
 
-    router.push(redirectTo);
-    router.refresh();
+    // Full page reload ensures cookies are sent with the next request
+    // before the middleware checks auth
+    window.location.href = redirectTo;
   }
 
   async function sendMagicLink() {
