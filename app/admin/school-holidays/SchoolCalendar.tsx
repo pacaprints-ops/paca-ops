@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { getOrMigrateUserData, setUserData } from "../../lib/userStore";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 type Carer = { id: string; name: string; color: string };
@@ -426,27 +427,26 @@ export default function SchoolCalendar({ person }: { person: string }) {
   const [selectedMonth, setSelectedMonth] = useState(
     ALL_MONTHS.includes(currentMonth) ? currentMonth : ALL_MONTHS[0]
   );
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(storageKey);
+    getOrMigrateUserData<CalendarStore>(storageKey).then((saved) => {
       if (saved) {
-        const parsed = JSON.parse(saved);
         const defaults = makeDefaults(person);
         setStore({
-          ...parsed,
-          // If no periods saved, load defaults (e.g. first visit after dates were added)
-          periods: parsed.periods?.length > 0 ? parsed.periods : defaults.periods,
-          // notes field didn't exist in earlier versions
-          notes: parsed.notes ?? {},
+          ...saved,
+          periods: saved.periods?.length > 0 ? saved.periods : defaults.periods,
+          notes: saved.notes ?? {},
         });
       }
-    } catch {}
-    setLoaded(true);
-  }, [storageKey]);
+      setLoaded(true);
+    });
+  }, [storageKey, person]);
 
   useEffect(() => {
-    if (loaded) localStorage.setItem(storageKey, JSON.stringify(store));
+    if (!loaded) return;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => setUserData(storageKey, store), 600);
   }, [store, loaded, storageKey]);
 
   // Build a map: date -> [{label, type}]
