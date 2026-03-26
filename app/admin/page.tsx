@@ -39,6 +39,12 @@ const carrieTools: Tool[] = [
     icon: "💳",
   },
   {
+    title: "Tax Calculator",
+    description: "Rough self-assessment estimate based on PAYE, Paca share, and dividends.",
+    href: "/admin/tax/carrie",
+    icon: "🧾",
+  },
+  {
     title: "School Holiday Planner",
     description: "Plan activities and trips for school holidays.",
     href: "/admin/school-holidays/carrie",
@@ -52,6 +58,12 @@ const vickyTools: Tool[] = [
     description: "Income, fixed outgoings, and monthly budget.",
     href: "/admin/budget/vicky",
     icon: "💳",
+  },
+  {
+    title: "Tax Calculator",
+    description: "Rough self-assessment estimate based on PAYE, Paca share, and extra cash income.",
+    href: "/admin/tax/vicky",
+    icon: "🧾",
   },
   {
     title: "School Holiday Planner",
