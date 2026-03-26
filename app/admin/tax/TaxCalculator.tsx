@@ -94,16 +94,26 @@ type FinanceSettings = {
   mileage_threshold: number;
 };
 
+type Entry = { id: string; date: string; amount: string };
+
 type TaxInputs = {
   payeGross: string;
   payeTaxPaid: string;
   pacaSharePct: string;
-  extraIncome: string;  // Vicky: cash job
-  dividends: string;    // Carrie: dividends
+  extraIncomeEntries: Entry[];  // Vicky: cash job payments
+  dividendEntries: Entry[];     // Carrie: dividend payments
 };
 
+function uid() { return Math.random().toString(36).slice(2); }
+
 function emptyInputs(): TaxInputs {
-  return { payeGross: "", payeTaxPaid: "", pacaSharePct: "50", extraIncome: "", dividends: "" };
+  return {
+    payeGross: "",
+    payeTaxPaid: "",
+    pacaSharePct: "50",
+    extraIncomeEntries: [],
+    dividendEntries: [],
+  };
 }
 
 // ── Input field ────────────────────────────────────────────────────
@@ -141,7 +151,7 @@ function Field({
 // ── Main ───────────────────────────────────────────────────────────
 export default function TaxCalculator({ person }: { person: "carrie" | "vicky" }) {
   const isCarrie = person === "carrie";
-  const storageKey = `pp-tax-calc-v1-${person}`;
+  const storageKey = `pp-tax-calc-v2-${person}`;
 
   const [taxYearStart, setTaxYearStart] = useState(getCurrentTaxYearStart());
   const [inputs, setInputs] = useState<TaxInputs>(emptyInputs);
@@ -166,7 +176,7 @@ export default function TaxCalculator({ person }: { person: "carrie" | "vicky" }
     saveTimer.current = setTimeout(() => setUserData(storageKey, inputs), 600);
   }, [inputs, loaded, storageKey]);
 
-  function set(field: keyof TaxInputs, val: string) {
+  function set(field: keyof TaxInputs, val: string | Entry[]) {
     setInputs((p) => ({ ...p, [field]: val }));
   }
 
@@ -224,8 +234,12 @@ export default function TaxCalculator({ person }: { person: "carrie" | "vicky" }
       : calcPAYETax(payeGross);
     const pacaSharePct = Math.min(100, Math.max(0, parse(inputs.pacaSharePct)));
     const pacaShare = pacaProfit !== null ? Math.max(0, pacaProfit) * (pacaSharePct / 100) : 0;
-    const dividends = isCarrie ? parse(inputs.dividends) : 0;
-    const extraIncome = !isCarrie ? parse(inputs.extraIncome) : 0;
+    const dividends = isCarrie
+      ? inputs.dividendEntries.reduce((s, e) => s + parse(e.amount), 0)
+      : 0;
+    const extraIncome = !isCarrie
+      ? inputs.extraIncomeEntries.reduce((s, e) => s + parse(e.amount), 0)
+      : 0;
     const selfEmployedProfit = pacaShare + extraIncome;
     const nonDivIncome = payeGross + selfEmployedProfit;
 
@@ -345,13 +359,62 @@ export default function TaxCalculator({ person }: { person: "carrie" | "vicky" }
               <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500 mb-4">
                 Extra Income
               </h2>
-              <Field
-                label="Total cash income this tax year"
-                hint="Your extra job — no tax deducted, so all of it is taxable"
-                prefix="£"
-                value={inputs.extraIncome}
-                onChange={(v) => set("extraIncome", v)}
-              />
+              <p className="text-xs text-slate-400 mb-3">
+                No tax deducted from this — all of it is taxable.
+              </p>
+              <div className="flex flex-col gap-2 mb-3">
+                {inputs.extraIncomeEntries.map((e) => (
+                  <div key={e.id} className="flex gap-2 items-center">
+                    <input
+                      type="date"
+                      value={e.date}
+                      onChange={(ev) => {
+                        const updated = inputs.extraIncomeEntries.map((x) =>
+                          x.id === e.id ? { ...x, date: ev.target.value } : x
+                        );
+                        set("extraIncomeEntries", updated);
+                      }}
+                      className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-teal-400 focus:outline-none focus:ring-1 focus:ring-teal-300"
+                    />
+                    <div className="relative flex-1">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm select-none">£</span>
+                      <input
+                        type="number"
+                        value={e.amount}
+                        onChange={(ev) => {
+                          const updated = inputs.extraIncomeEntries.map((x) =>
+                            x.id === e.id ? { ...x, amount: ev.target.value } : x
+                          );
+                          set("extraIncomeEntries", updated);
+                        }}
+                        placeholder="0"
+                        className="w-full rounded-xl border border-slate-200 bg-white pl-7 pr-3 py-2 text-sm text-slate-900 focus:border-teal-400 focus:outline-none focus:ring-1 focus:ring-teal-300"
+                      />
+                    </div>
+                    <button
+                      onClick={() =>
+                        set("extraIncomeEntries", inputs.extraIncomeEntries.filter((x) => x.id !== e.id))
+                      }
+                      className="rounded-lg px-2 py-1.5 text-slate-400 hover:bg-red-50 hover:text-red-500 transition text-base leading-none"
+                    >✕</button>
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center justify-between">
+                <button
+                  onClick={() =>
+                    set("extraIncomeEntries", [...inputs.extraIncomeEntries, { id: uid(), date: "", amount: "" }])
+                  }
+                  className="pp-btn pp-btn-primary text-xs px-3 py-1.5"
+                >
+                  + Add payment
+                </button>
+                {inputs.extraIncomeEntries.length > 0 && (
+                  <span className="text-sm font-bold text-slate-700">
+                    Total: {fmtGBP(result.extraIncome)}
+                  </span>
+                )}
+              </div>
             </div>
           )}
 
@@ -361,13 +424,62 @@ export default function TaxCalculator({ person }: { person: "carrie" | "vicky" }
               <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500 mb-4">
                 Dividends
               </h2>
-              <Field
-                label="Total dividends received this tax year"
-                hint="All dividends from your other company — gross amount before any tax"
-                prefix="£"
-                value={inputs.dividends}
-                onChange={(v) => set("dividends", v)}
-              />
+              <p className="text-xs text-slate-400 mb-3">
+                Gross amount before any tax — add each payment separately.
+              </p>
+              <div className="flex flex-col gap-2 mb-3">
+                {inputs.dividendEntries.map((e) => (
+                  <div key={e.id} className="flex gap-2 items-center">
+                    <input
+                      type="date"
+                      value={e.date}
+                      onChange={(ev) => {
+                        const updated = inputs.dividendEntries.map((x) =>
+                          x.id === e.id ? { ...x, date: ev.target.value } : x
+                        );
+                        set("dividendEntries", updated);
+                      }}
+                      className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-teal-400 focus:outline-none focus:ring-1 focus:ring-teal-300"
+                    />
+                    <div className="relative flex-1">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm select-none">£</span>
+                      <input
+                        type="number"
+                        value={e.amount}
+                        onChange={(ev) => {
+                          const updated = inputs.dividendEntries.map((x) =>
+                            x.id === e.id ? { ...x, amount: ev.target.value } : x
+                          );
+                          set("dividendEntries", updated);
+                        }}
+                        placeholder="0"
+                        className="w-full rounded-xl border border-slate-200 bg-white pl-7 pr-3 py-2 text-sm text-slate-900 focus:border-teal-400 focus:outline-none focus:ring-1 focus:ring-teal-300"
+                      />
+                    </div>
+                    <button
+                      onClick={() =>
+                        set("dividendEntries", inputs.dividendEntries.filter((x) => x.id !== e.id))
+                      }
+                      className="rounded-lg px-2 py-1.5 text-slate-400 hover:bg-red-50 hover:text-red-500 transition text-base leading-none"
+                    >✕</button>
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center justify-between">
+                <button
+                  onClick={() =>
+                    set("dividendEntries", [...inputs.dividendEntries, { id: uid(), date: "", amount: "" }])
+                  }
+                  className="pp-btn pp-btn-primary text-xs px-3 py-1.5"
+                >
+                  + Add dividend
+                </button>
+                {inputs.dividendEntries.length > 0 && (
+                  <span className="text-sm font-bold text-slate-700">
+                    Total: {fmtGBP(result.dividends)}
+                  </span>
+                )}
+              </div>
             </div>
           )}
         </div>
