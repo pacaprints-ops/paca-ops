@@ -70,6 +70,15 @@ function calcTax(nonDivIncome: number, dividends: number) {
   return { nonDivTax, divTax, inBasic, inHigher, inAdditional, divTaxable, divInBasic, divInHigher };
 }
 
+function calcPAYETax(gross: number): number {
+  const basicBandSize = BASIC_LIMIT - PA;
+  const taxable = Math.max(0, gross - PA);
+  const inBasic = Math.min(taxable, basicBandSize);
+  const inHigher = Math.min(Math.max(0, taxable - basicBandSize), HIGHER_LIMIT - BASIC_LIMIT);
+  const inAdditional = Math.max(0, taxable - (HIGHER_LIMIT - PA));
+  return inBasic * BASIC_RATE + inHigher * HIGHER_RATE + inAdditional * ADD_RATE;
+}
+
 function calcClass4NI(profit: number) {
   if (profit <= C4_LOWER) return 0;
   const main = Math.min(profit - C4_LOWER, C4_UPPER - C4_LOWER) * C4_MAIN;
@@ -210,7 +219,9 @@ export default function TaxCalculator({ person }: { person: "carrie" | "vicky" }
   // ── Calculate results ──────────────────────────────────────────
   const result = useMemo(() => {
     const payeGross = parse(inputs.payeGross);
-    const payeTaxPaid = parse(inputs.payeTaxPaid);
+    const payeTaxPaid = inputs.payeTaxPaid.trim()
+      ? parse(inputs.payeTaxPaid)
+      : calcPAYETax(payeGross);
     const pacaSharePct = Math.min(100, Math.max(0, parse(inputs.pacaSharePct)));
     const pacaShare = pacaProfit !== null ? Math.max(0, pacaProfit) * (pacaSharePct / 100) : 0;
     const dividends = isCarrie ? parse(inputs.dividends) : 0;
@@ -310,9 +321,17 @@ export default function TaxCalculator({ person }: { person: "carrie" | "vicky" }
                 value={inputs.payeGross}
                 onChange={(v) => set("payeGross", v)}
               />
+              {parse(inputs.payeGross) > 0 && (
+                <div className="rounded-xl bg-slate-50 border border-slate-100 px-4 py-3 text-sm">
+                  <span className="text-slate-500">Estimated PAYE tax (standard tax code): </span>
+                  <span className="font-bold text-slate-900">
+                    {fmtGBP(calcPAYETax(parse(inputs.payeGross)))}
+                  </span>
+                </div>
+              )}
               <Field
-                label="Income tax paid via PAYE"
-                hint="From your P60 or running total from payslips"
+                label="Override PAYE tax paid (optional)"
+                hint="Leave blank to use the estimate above. Only fill in if your actual tax paid differs — e.g. started mid-year or non-standard tax code."
                 prefix="£"
                 value={inputs.payeTaxPaid}
                 onChange={(v) => set("payeTaxPaid", v)}
@@ -435,7 +454,12 @@ export default function TaxCalculator({ person }: { person: "carrie" | "vicky" }
                 <span className="tabular-nums">{fmtGBP(result.totalOwed)}</span>
               </div>
               <div className="flex justify-between text-red-500">
-                <span>Less PAYE tax already paid</span>
+                <span>
+                  Less PAYE tax paid
+                  {!inputs.payeTaxPaid.trim() && (
+                    <span className="ml-1 text-xs text-slate-400">(estimated)</span>
+                  )}
+                </span>
                 <span className="tabular-nums">−{fmtGBP(result.payeTaxPaid)}</span>
               </div>
             </div>
