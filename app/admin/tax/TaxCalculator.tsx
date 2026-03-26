@@ -250,15 +250,29 @@ export default function TaxCalculator({ person }: { person: "carrie" | "vicky" }
 
     const dates = paymentDates(taxYearStart);
     const today = new Date();
-    const nextDate = dates.balancing >= today ? dates.balancing : dates.secondPOA;
+    const balancingIsFuture = dates.balancing >= today;
+    const nextDate = balancingIsFuture ? dates.balancing : dates.secondPOA;
     const daysUntil = Math.ceil((nextDate.getTime() - today.getTime()) / 86400000);
+
+    // Payments on account: if bill > £1,000, HMRC also collects 50% towards next year
+    const poaApplies = additionalOwed > 1000;
+    const poaAmount = poaApplies ? additionalOwed * 0.5 : 0;
+    // January payment = balancing + first POA; July = second POA
+    const janPayment = additionalOwed + poaAmount;
+    const julPayment = poaAmount;
+
+    // Monthly savings target — months remaining until next deadline
+    const monthsUntil = Math.max(1, Math.ceil(daysUntil / 30.4));
+    const monthlySavings = additionalOwed > 0 ? Math.ceil(janPayment / monthsUntil) : 0;
 
     return {
       payeGross, payeTaxPaid, pacaShare, selfEmployedProfit,
       extraIncome, dividends, nonDivIncome,
       totalIncome: nonDivIncome + dividends,
       ...tax, class4NI, totalOwed, additionalOwed,
-      dates, nextDate, daysUntil,
+      dates, nextDate, daysUntil, balancingIsFuture,
+      poaApplies, poaAmount, janPayment, julPayment,
+      monthsUntil, monthlySavings,
     };
   }, [inputs, pacaProfit, taxYearStart, isCarrie]);
 
@@ -604,21 +618,62 @@ export default function TaxCalculator({ person }: { person: "carrie" | "vicky" }
               </span>
             </div>
 
-            {/* Payment deadline */}
-            <div className="rounded-xl bg-slate-50 border border-slate-100 px-4 py-3">
-              <p className="text-xs font-semibold text-slate-500 mb-1">Next payment deadline</p>
-              <p className="text-base font-bold text-slate-900">{fmtDate(result.nextDate)}</p>
-              <p className="text-xs text-slate-400 mt-0.5">
-                {result.daysUntil > 0
-                  ? `${result.daysUntil} days away`
-                  : result.daysUntil === 0
-                  ? "Today!"
-                  : `${Math.abs(result.daysUntil)} days ago (overdue)`}
-              </p>
-              <p className="text-xs text-slate-400 mt-2 leading-relaxed">
-                All {taxYearLabel(taxYearStart)} deadlines:{" "}
-                {fmtDate(result.dates.balancing)} · {fmtDate(result.dates.secondPOA)}
-              </p>
+            {/* Monthly savings target */}
+            {result.additionalOwed > 0 && (
+              <div
+                className="rounded-xl px-4 py-3"
+                style={{ background: "var(--pp-teal-soft)", border: "1px solid var(--pp-teal-border)" }}
+              >
+                <p className="text-xs font-semibold text-slate-600 mb-1">Monthly savings target</p>
+                <p className="text-2xl font-extrabold tabular-nums text-teal-700">
+                  {fmtGBP(result.monthlySavings)}<span className="text-sm font-semibold text-teal-600">/month</span>
+                </p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {result.monthsUntil} month{result.monthsUntil !== 1 ? "s" : ""} until {fmtDate(result.nextDate)} · covers full January payment
+                </p>
+              </div>
+            )}
+
+            {/* Payment dates */}
+            <div className="rounded-xl bg-slate-50 border border-slate-100 px-4 py-3 flex flex-col gap-2">
+              <p className="text-xs font-semibold text-slate-500">Payment deadlines</p>
+
+              <div className="flex justify-between items-start text-sm">
+                <div>
+                  <p className="font-bold text-slate-900">{fmtDate(result.dates.balancing)}</p>
+                  <p className="text-xs text-slate-400">
+                    {result.balancingIsFuture
+                      ? `${result.daysUntil} days away`
+                      : `${Math.abs(Math.ceil((result.dates.balancing.getTime() - new Date().getTime()) / 86400000))} days ago`}
+                  </p>
+                </div>
+                {result.additionalOwed > 0 && (
+                  <div className="text-right">
+                    <p className="font-bold text-slate-900 tabular-nums">{fmtGBP(result.janPayment)}</p>
+                    {result.poaApplies && (
+                      <p className="text-xs text-slate-400">
+                        {fmtGBP(result.additionalOwed)} owed + {fmtGBP(result.poaAmount)} POA
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-between items-start text-sm border-t border-slate-100 pt-2">
+                <div>
+                  <p className="font-bold text-slate-900">{fmtDate(result.dates.secondPOA)}</p>
+                  <p className="text-xs text-slate-400">Second payment on account</p>
+                </div>
+                {result.poaApplies && (
+                  <p className="font-bold text-slate-900 tabular-nums">{fmtGBP(result.julPayment)}</p>
+                )}
+              </div>
+
+              {result.poaApplies && (
+                <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 leading-relaxed">
+                  ⚠️ Your bill is over £1,000 so HMRC will collect payments on account — advance payments towards next year's bill. January is bigger than it looks.
+                </p>
+              )}
             </div>
 
             <p className="text-xs text-slate-400 leading-relaxed">
