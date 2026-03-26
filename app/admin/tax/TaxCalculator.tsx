@@ -505,6 +505,19 @@ export default function TaxCalculator({ person }: { person: "carrie" | "vicky" }
               Estimated Tax Bill
             </h2>
 
+            {/* Set aside today */}
+            {result.additionalOwed > 0 && (
+              <div className="rounded-xl px-4 py-4 flex flex-col gap-1" style={{ background: "#1e293b" }}>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Set aside today</p>
+                <p className="text-3xl font-extrabold tabular-nums text-white">
+                  {fmtGBP(result.janPayment)}
+                </p>
+                <p className="text-xs text-slate-400 leading-relaxed mt-0.5">
+                  Move this to a separate savings account now and don&apos;t touch it — it covers your full January {new Date(result.dates.balancing).getFullYear()} payment.
+                </p>
+              </div>
+            )}
+
             {/* Income summary */}
             <div className="flex flex-col gap-1.5 text-sm pb-4 border-b border-slate-100">
               <div className="flex justify-between">
