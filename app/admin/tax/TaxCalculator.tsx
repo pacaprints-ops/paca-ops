@@ -436,10 +436,15 @@ export default function TaxCalculator({ person }: { person: "carrie" | "vicky" }
                     </div>
                   )}
                   {result.divInHigher > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Div 33.75% on {fmtGBP(result.divInHigher)}</span>
-                      <span className="tabular-nums text-slate-700">{fmtGBP(result.divInHigher * DIV_HIGHER)}</span>
-                    </div>
+                    <>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Div 33.75% on {fmtGBP(result.divInHigher)}</span>
+                        <span className="tabular-nums text-slate-700">{fmtGBP(result.divInHigher * DIV_HIGHER)}</span>
+                      </div>
+                      <p className="text-xs text-slate-400 -mt-0.5">
+                        Your salary + Paca share fills the basic rate band, so these dividends land in the higher rate band.
+                      </p>
+                    </>
                   )}
                 </>
               )}
