@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import { getOrMigrateUserData, setUserData } from "../../lib/userStore";
 
-// ── UK Tax Constants (2024/25 · 2025/26) ──────────────────────────
+// ── UK Tax Constants ───────────────────────────────────────────────
 const PA = 12570;
 const BASIC_LIMIT = 50270;
 const HIGHER_LIMIT = 125140;
@@ -12,12 +12,19 @@ const BASIC_RATE = 0.20;
 const HIGHER_RATE = 0.40;
 const ADD_RATE = 0.45;
 const DIV_ALLOWANCE = 500;
-const DIV_BASIC = 0.0875;
-const DIV_HIGHER = 0.3375;
 const C4_LOWER = 12570;
 const C4_UPPER = 50270;
 const C4_MAIN = 0.06;
 const C4_UPPER_RATE = 0.02;
+
+// Dividend rates changed from 6 April 2026
+// 2024/25 + 2025/26: 8.75% / 33.75%
+// 2026/27 onwards:  10.75% / 35.75%
+function divRates(taxYearStart: number) {
+  return taxYearStart >= 2026
+    ? { basic: 0.1075, higher: 0.3575 }
+    : { basic: 0.0875, higher: 0.3375 };
+}
 
 // ── Helpers ────────────────────────────────────────────────────────
 function taxYearLabel(sy: number) {
@@ -52,7 +59,7 @@ function parse(v: string) {
 }
 
 // ── Tax calculation ────────────────────────────────────────────────
-function calcTax(nonDivIncome: number, dividends: number) {
+function calcTax(nonDivIncome: number, dividends: number, rates: { basic: number; higher: number }) {
   const basicBandSize = BASIC_LIMIT - PA; // £37,700
 
   const taxableNonDiv = Math.max(0, nonDivIncome - PA);
@@ -65,7 +72,7 @@ function calcTax(nonDivIncome: number, dividends: number) {
   const basicRemaining = Math.max(0, basicBandSize - inBasic);
   const divInBasic = Math.min(divTaxable, basicRemaining);
   const divInHigher = Math.max(0, divTaxable - basicRemaining);
-  const divTax = divInBasic * DIV_BASIC + divInHigher * DIV_HIGHER;
+  const divTax = divInBasic * rates.basic + divInHigher * rates.higher;
 
   return { nonDivTax, divTax, inBasic, inHigher, inAdditional, divTaxable, divInBasic, divInHigher };
 }
@@ -243,7 +250,8 @@ export default function TaxCalculator({ person }: { person: "carrie" | "vicky" }
     const selfEmployedProfit = pacaShare + extraIncome;
     const nonDivIncome = payeGross + selfEmployedProfit;
 
-    const tax = calcTax(nonDivIncome, dividends);
+    const rates = divRates(taxYearStart);
+    const tax = calcTax(nonDivIncome, dividends, rates);
     const class4NI = calcClass4NI(selfEmployedProfit);
     const totalOwed = tax.nonDivTax + tax.divTax + class4NI;
     const additionalOwed = totalOwed - payeTaxPaid;
@@ -269,7 +277,7 @@ export default function TaxCalculator({ person }: { person: "carrie" | "vicky" }
       payeGross, payeTaxPaid, pacaShare, selfEmployedProfit,
       extraIncome, dividends, nonDivIncome,
       totalIncome: nonDivIncome + dividends,
-      ...tax, class4NI, totalOwed, additionalOwed,
+      ...tax, class4NI, totalOwed, additionalOwed, rates,
       dates, nextDate, daysUntil, balancingIsFuture,
       poaApplies, poaAmount, janPayment, julPayment,
       monthsUntil, monthlySavings,
@@ -570,15 +578,15 @@ export default function TaxCalculator({ person }: { person: "carrie" | "vicky" }
                 <>
                   {result.divInBasic > 0 && (
                     <div className="flex justify-between">
-                      <span className="text-slate-500">Div 8.75% on {fmtGBP(result.divInBasic)}</span>
-                      <span className="tabular-nums text-slate-700">{fmtGBP(result.divInBasic * DIV_BASIC)}</span>
+                      <span className="text-slate-500">Div {(result.rates.basic * 100).toFixed(2)}% on {fmtGBP(result.divInBasic)}</span>
+                      <span className="tabular-nums text-slate-700">{fmtGBP(result.divInBasic * result.rates.basic)}</span>
                     </div>
                   )}
                   {result.divInHigher > 0 && (
                     <>
                       <div className="flex justify-between">
-                        <span className="text-slate-500">Div 33.75% on {fmtGBP(result.divInHigher)}</span>
-                        <span className="tabular-nums text-slate-700">{fmtGBP(result.divInHigher * DIV_HIGHER)}</span>
+                        <span className="text-slate-500">Div {(result.rates.higher * 100).toFixed(2)}% on {fmtGBP(result.divInHigher)}</span>
+                        <span className="tabular-nums text-slate-700">{fmtGBP(result.divInHigher * result.rates.higher)}</span>
                       </div>
                       <p className="text-xs text-slate-400 -mt-0.5">
                         Your salary + Paca share fills the basic rate band, so these dividends land in the higher rate band.
