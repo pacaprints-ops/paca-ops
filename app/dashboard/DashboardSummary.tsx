@@ -158,6 +158,11 @@ export default function DashboardSummary() {
   const [loading, setLoading] = useState<boolean>(true);
   const [errorMsg, setErrorMsg] = useState<string>("");
 
+  // To-dos (from same localStorage as Reminders Board)
+  const REMINDERS_KEY = "pp-reminders-v3";
+  const [todosCount, setTodosCount] = useState<number>(0);
+  const [quickTodoText, setQuickTodoText] = useState<string>("");
+
   const platformValueToSend = useMemo(() => {
     if (!platform) return null;
     if (platform === "custom") return platformCustom.trim() || null;
@@ -311,6 +316,36 @@ export default function DashboardSummary() {
     setLowStockCount(items.length);
   }
 
+  function loadTodosCount() {
+    try {
+      const saved = localStorage.getItem(REMINDERS_KEY);
+      if (saved) {
+        const sections: Array<{ items: Array<{ done: boolean }> }> = JSON.parse(saved);
+        setTodosCount(sections.flatMap((s) => s.items).filter((i) => !i.done).length);
+      }
+    } catch {}
+  }
+
+  function addQuickTodo() {
+    const text = quickTodoText.trim();
+    if (!text) return;
+    try {
+      const saved = localStorage.getItem(REMINDERS_KEY);
+      let sections: Array<{ id: string; title: string; items: Array<{ id: string; text: string; done: boolean }> }> =
+        saved ? JSON.parse(saved) : [];
+      const newItem = { id: Math.random().toString(36).slice(2), text, done: false };
+      const otherIdx = sections.findIndex((s) => s.id === "other");
+      if (otherIdx >= 0) {
+        sections[otherIdx].items = [...sections[otherIdx].items, newItem];
+      } else {
+        sections = [...sections, { id: "other", title: "Other", items: [newItem] }];
+      }
+      localStorage.setItem(REMINDERS_KEY, JSON.stringify(sections));
+      setQuickTodoText("");
+      loadTodosCount();
+    } catch {}
+  }
+
   async function loadMonthlyTable() {
     setMonthlyLoading(true);
     setMonthlyError("");
@@ -414,6 +449,11 @@ export default function DashboardSummary() {
 
     downloadCSV(`dashboard_monthly_${yearA}_${yearB}.csv`, [header, ...lines]);
   }
+
+  useEffect(() => {
+    loadTodosCount();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     loadTopSummary();
@@ -540,7 +580,7 @@ export default function DashboardSummary() {
       </div>
 
       {/* Second row */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
         {/* Low stock — shows each material with its quantity */}
         <div className={lowCardClasses}>
           <div className="text-sm font-extrabold text-slate-900">Low Stock Alert</div>
@@ -560,6 +600,35 @@ export default function DashboardSummary() {
           )}
           <div className="mt-2 text-xs text-slate-500">
             <span className="text-red-700 font-semibold">Red</span> = out &nbsp;·&nbsp; <span className="text-amber-600 font-semibold">Amber</span> = low
+          </div>
+        </div>
+
+        {/* To-Dos */}
+        <div className="pp-card p-5">
+          <div className="text-sm font-extrabold text-slate-900">To-Dos</div>
+          <div className="mt-3 text-3xl font-extrabold text-slate-900">
+            {todosCount === 0 ? "—" : todosCount}
+          </div>
+          {todosCount > 0 && (
+            <div className="mt-1 text-xs text-slate-500">{todosCount} pending</div>
+          )}
+          <div className="mt-3 flex gap-2">
+            <input
+              type="text"
+              value={quickTodoText}
+              onChange={(e) => setQuickTodoText(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && addQuickTodo()}
+              placeholder="Add a to-do…"
+              className="flex-1 min-w-0 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-teal-400 focus:outline-none focus:ring-1 focus:ring-teal-300"
+            />
+            <button onClick={addQuickTodo} className="pp-btn pp-btn-primary text-xs px-3 py-1.5 shrink-0">
+              +
+            </button>
+          </div>
+          <div className="mt-2">
+            <a href="/admin/reminders" className="text-xs font-semibold underline text-slate-500">
+              View all →
+            </a>
           </div>
         </div>
 
