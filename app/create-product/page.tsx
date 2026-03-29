@@ -83,6 +83,10 @@ export default function CreateProductPage() {
   const [copyError, setCopyError] = useState<string>("");
   const [imageErrors, setImageErrors] = useState<string[]>(["", "", "", "", ""]);
 
+  const [shopifyPushing, setShopifyPushing] = useState(false);
+  const [shopifyUrl, setShopifyUrl] = useState<string>("");
+  const [shopifyError, setShopifyError] = useState<string>("");
+
   const sizes = productType === "card" ? CARD_SIZES : PRINT_SIZES;
   const recipeLabels =
     productType === "card" ? RECIPE_LABELS : PRINT_RECIPE_LABELS;
@@ -131,6 +135,8 @@ export default function CreateProductPage() {
     setImages([null, null, null, null, null]);
     setCopyError("");
     setImageErrors(["", "", "", "", ""]);
+    setShopifyUrl("");
+    setShopifyError("");
 
     // Step 1: Generate copy
     setStatus("Writing product copy…");
@@ -186,6 +192,26 @@ export default function CreateProductPage() {
 
     setStatus("Done!");
     setRunning(false);
+  }
+
+  async function pushToShopify() {
+    if (!copy) return;
+    setShopifyPushing(true);
+    setShopifyUrl("");
+    setShopifyError("");
+    try {
+      const res = await fetch("/api/create-product/shopify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ copy, images, productType }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to push to Shopify");
+      setShopifyUrl(data.adminUrl);
+    } catch (err) {
+      setShopifyError(err instanceof Error ? err.message : "Failed to push to Shopify");
+    }
+    setShopifyPushing(false);
   }
 
   function downloadImage(img: GeneratedImage, index: number) {
@@ -417,6 +443,40 @@ export default function CreateProductPage() {
                   </div>
                 </div>
               ) : null}
+            </div>
+          )}
+
+          {/* Push to Shopify */}
+          {copy && !running && (
+            <div className="pp-card p-5 space-y-3">
+              <h2 className="text-sm font-extrabold text-slate-900">Push to Shopify</h2>
+              <p className="text-xs text-slate-500">
+                Creates a <strong>draft product</strong> in Shopify with the copy and all generated images. Nothing goes live until you publish it.
+              </p>
+
+              {shopifyUrl ? (
+                <a
+                  href={shopifyUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block w-full text-center rounded-xl px-4 py-3 text-sm font-bold bg-green-600 text-white hover:bg-green-700 transition"
+                >
+                  Product created — open in Shopify admin →
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  onClick={pushToShopify}
+                  disabled={shopifyPushing}
+                  className="w-full rounded-xl px-4 py-3 text-sm font-bold bg-slate-900 text-white hover:bg-slate-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {shopifyPushing ? "Pushing to Shopify…" : "Push to Shopify"}
+                </button>
+              )}
+
+              {shopifyError && (
+                <p className="text-sm text-red-600">{shopifyError}</p>
+              )}
             </div>
           )}
 
