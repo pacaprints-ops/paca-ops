@@ -61,10 +61,14 @@ const HARD_CARD_RULES = `
 CARD RULES:
 - The card design shown in the reference image must be reproduced exactly as a physical card
 - Never alter the artwork, text, colours, fonts, layout, or alignment
-- Maintain correct aspect ratio — do not distort
-- The card is a standard single-fold greeting card: it folds ONCE along the LEFT edge only, opening left to right like a book
-- The top edge, right edge, and bottom edge are all CLOSED — only the left edge is the fold
-- Never show the card open at the bottom or with multiple openings
+- The card is a standard single-fold greeting card
+- FOLD/SPINE is on the LEFT edge — this edge is sealed and closed
+- OPENING is on the RIGHT edge only — this is the only edge where the two layers of card separate
+- TOP edge: closed and sealed
+- BOTTOM edge: closed and sealed
+- The card opens like a book: spine left, pages open to the right
+- NEVER show any opening at the top, left, or bottom edges
+- NEVER show the card opening at the bottom — this is wrong and must not happen
 - Show the front face of the card fully — no cropping of design edges
 `.trim();
 
@@ -96,8 +100,16 @@ export function buildImagePrompt(
   const recipe = recipes[recipeIndex] ?? recipes[0];
   const productRules = productType === "card" ? HARD_CARD_RULES : HARD_PRINT_RULES;
 
+  const SIZE_ASPECTS: Record<string, string> = {
+    A6: "portrait rectangle, aspect ratio 1:1.41 (width:height) — taller than wide",
+    A5: "portrait rectangle, aspect ratio 1:1.41 (width:height) — taller than wide",
+    A4: "portrait rectangle, aspect ratio 1:1.41 (width:height) — taller than wide",
+    A3: "portrait rectangle, aspect ratio 1:1.41 (width:height) — taller than wide",
+    A2: "portrait rectangle, aspect ratio 1:1.41 (width:height) — taller than wide",
+    Square: "perfect square, aspect ratio 1:1 (equal width and height)",
+  };
   const sizeNote = size
-    ? `Size: ${size}. Scale the product realistically for this size.`
+    ? `Size: ${size} — render the product as a ${SIZE_ASPECTS[size] ?? "portrait rectangle"}. This aspect ratio is mandatory — do not make it square unless the size says Square.`
     : "";
 
   const extraNote = extraNotes?.trim()
