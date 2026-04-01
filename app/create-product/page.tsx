@@ -200,14 +200,29 @@ export default function CreateProductPage() {
     setShopifyUrl("");
     setShopifyError("");
     try {
+      // Step 1: Create the product (copy only — no images to stay under payload limit)
       const res = await fetch("/api/create-product/shopify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ copy, images, productType }),
+        body: JSON.stringify({ copy, productType }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to push to Shopify");
-      setShopifyUrl(data.adminUrl);
+      if (!res.ok) throw new Error(data.error ?? "Failed to create Shopify product");
+      const { productId, adminUrl } = data;
+
+      // Step 2: Upload each generated image one at a time
+      const validImages = images.filter(Boolean);
+      for (const img of validImages) {
+        if (!img) continue;
+        await fetch("/api/create-product/shopify/image", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ productId, imageBase64: img.imageBase64, alt: copy.title }),
+        });
+        // Continue even if one image fails — don't block the whole push
+      }
+
+      setShopifyUrl(adminUrl);
     } catch (err) {
       setShopifyError(err instanceof Error ? err.message : "Failed to push to Shopify");
     }

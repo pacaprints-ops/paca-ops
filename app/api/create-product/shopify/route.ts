@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { copy, images, productType } = await req.json();
+  const { copy, productType } = await req.json();
 
   if (!copy?.title) {
     return NextResponse.json({ error: "copy.title is required" }, { status: 400 });
@@ -26,21 +26,12 @@ export async function POST(req: NextRequest) {
     .map((l: string) => `<p>${l.trim()}</p>`)
     .join("");
 
-  // Only push images that were successfully generated
-  const productImages = (images as Array<{ imageBase64: string; mimeType: string } | null>)
-    .filter(Boolean)
-    .map((img) => ({
-      attachment: img!.imageBase64,
-      alt: copy.title,
-    }));
-
   const product = {
     title: copy.title,
     body_html: bodyHtml,
     vendor: "Paca Prints",
     product_type: productType === "card" ? "Card" : "Print",
     status: "draft",
-    images: productImages,
     metafields: [
       {
         namespace: "global",
