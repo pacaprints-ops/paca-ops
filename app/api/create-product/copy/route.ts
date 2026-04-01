@@ -39,8 +39,18 @@ export async function POST(req: NextRequest) {
     const result = await model.generateContent(prompt);
     const text = result.response.text().trim();
 
-    // Strip markdown code fences if present
-    const cleaned = text.replace(/^```json\s*/i, "").replace(/\s*```$/i, "").trim();
+    // Strip markdown code fences if present, then sanitise control characters
+    const cleaned = text
+      .replace(/^```json\s*/i, "")
+      .replace(/\s*```$/i, "")
+      .trim()
+      // Replace literal control characters inside strings with their escaped form
+      .replace(/[\u0000-\u001F\u007F]/g, (c) => {
+        const escapes: Record<string, string> = {
+          "\n": "\\n", "\r": "\\r", "\t": "\\t",
+        };
+        return escapes[c] ?? "";
+      });
 
     const copy = JSON.parse(cleaned);
 
