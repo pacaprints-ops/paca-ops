@@ -40,9 +40,26 @@ export async function POST(req: NextRequest) {
     );
 
     const result = await model.generateContent(prompt);
-    const text = result.response.text().trim();
+    const raw = result.response.text().trim();
 
-    const copy = JSON.parse(text);
+    // Escape control characters only inside JSON string values (not structural whitespace)
+    let inString = false;
+    let escaped = false;
+    let sanitized = "";
+    for (const c of raw) {
+      if (escaped) { sanitized += c; escaped = false; continue; }
+      if (c === "\\" && inString) { escaped = true; sanitized += c; continue; }
+      if (c === '"') { inString = !inString; sanitized += c; continue; }
+      if (inString) {
+        if (c === "\n") { sanitized += "\\n"; continue; }
+        if (c === "\r") { sanitized += "\\r"; continue; }
+        if (c === "\t") { sanitized += "\\t"; continue; }
+        if (c.charCodeAt(0) < 32) continue; // drop other control chars
+      }
+      sanitized += c;
+    }
+
+    const copy = JSON.parse(sanitized);
 
     return NextResponse.json(copy);
   } catch (err: unknown) {
