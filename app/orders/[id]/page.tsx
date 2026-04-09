@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
 
 type OrderHeader = {
@@ -55,10 +55,13 @@ function toNum(s: string) {
 export default function OrderEditPage() {
   const params = useParams<{ id: string }>();
   const orderId = params?.id;
+  const router = useRouter();
 
   const [loading, setLoading] = useState(true);
   const [savingFlags, setSavingFlags] = useState(false);
   const [savingHeader, setSavingHeader] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
   const [order, setOrder] = useState<OrderHeader | null>(null);
@@ -176,6 +179,20 @@ export default function OrderEditPage() {
 
     return { gross, fees, payout, ship, cogsUsed, profit, expectedPayout, overrideProvided };
   }, [grossRevenue, platformFees, revenue, shippingCost, cogsOverride, order?.total_cost]);
+
+  async function deleteOrder() {
+    if (!orderId) return;
+    setDeleting(true);
+    setErrorMsg("");
+    const { error } = await supabase.from("orders").delete().eq("id", orderId);
+    setDeleting(false);
+    if (error) {
+      setErrorMsg(error.message);
+      setConfirmDelete(false);
+      return;
+    }
+    router.push("/orders");
+  }
 
   async function saveHeader() {
     if (!orderId || !order) return;
@@ -418,6 +435,41 @@ export default function OrderEditPage() {
             >
               {savingHeader ? "Saving…" : "Save order changes"}
             </button>
+
+            {lines.length === 0 && (
+              <div className="mt-3">
+                {!confirmDelete ? (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDelete(true)}
+                    className="w-full rounded-md border border-red-300 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                  >
+                    Delete order
+                  </button>
+                ) : (
+                  <div className="rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+                    <p className="mb-2 font-medium">Delete this order permanently?</p>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={deleteOrder}
+                        disabled={deleting}
+                        className="rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60"
+                      >
+                        {deleting ? "Deleting…" : "Yes, delete"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDelete(false)}
+                        className="rounded-md border bg-white px-3 py-2 text-sm hover:bg-gray-50"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Summary cards - MATCH TABLE */}
             <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-6">
