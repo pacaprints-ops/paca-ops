@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, Fragment } from "react";
 import Link from "next/link";
 import { supabase } from "../lib/supabaseClient";
 import AdjustMaterialModal from "./AdjustMaterialModal";
+import LogStockModal from "./LogStockModal";
 
 type MaterialRow = {
   material_id: string;
@@ -266,6 +267,10 @@ export default function MaterialsPage() {
         <h1 className="text-2xl font-semibold text-gray-900">Raw Materials</h1>
 
         <div className="flex items-center gap-3">
+          <LogStockModal
+            materials={rows.map((r) => ({ id: r.material_id, name: r.material_name }))}
+            onDone={refreshMaterials}
+          />
           <Link href="/materials/adjustments" className="text-sm text-gray-600 underline">
             Adjustment log
           </Link>

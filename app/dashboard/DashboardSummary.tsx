@@ -19,7 +19,7 @@ type DashboardSummaryRow = {
 
 type OrderRow = {
   order_date: string;
-  total_revenue: number | string | null;
+  revenue: number | string | null; // payout (net received) — raw orders column
   total_cost: number | string | null;
   gross_profit: number | string | null;
   is_refunded?: boolean | null;
@@ -361,7 +361,7 @@ export default function DashboardSummary() {
 
       let q = supabase
         .from("orders")
-        .select("order_date,total_revenue,total_cost,gross_profit,is_refunded")
+        .select("order_date,revenue,total_cost,gross_profit,is_refunded")
         .gte("order_date", from)
         .lt("order_date", to);
 
@@ -393,7 +393,7 @@ export default function DashboardSummary() {
           if (m < 0 || m > 11) continue;
 
           byMonth[m].orders += 1;
-          byMonth[m].revenue += toNumber(r.total_revenue);
+          byMonth[m].revenue += toNumber(r.revenue);
           byMonth[m].cogs += toNumber(r.total_cost);
           byMonth[m].profit += toNumber(r.gross_profit);
         }
