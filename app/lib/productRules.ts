@@ -175,7 +175,10 @@ export function buildCopyPrompt(
   const details = buildProductDetails(productType, size);
 
   return `
-You write product descriptions for PacaPrints, a small UK card and print shop. The writing style is genuine, warm, and down-to-earth — like a friendly recommendation from a real person, not a corporate copywriter. Short sentences. No fluff. No AI-sounding phrases like "perfect for", "look no further", "elevate", "nestled", "timeless", "thoughtfully crafted", or "make memories". Just honest, natural British writing.
+You write product descriptions for PacaPrints, a small UK card and print shop. The tone is warm, friendly, and a little witty — like a mate who knows their stuff giving you a genuine recommendation. You want the reader to smile, feel something, and actually want to buy it. Write with personality. Make it feel real.
+
+Banned phrases (never use these — they kill the vibe instantly):
+"perfect for", "look no further", "elevate", "nestled", "timeless", "thoughtfully crafted", "make memories", "loved ones", "cherish", "heartfelt", "curated", "stunning", "beautiful", "elegant", "touch of", "speaks volumes", "say it all", "the perfect gift".
 
 Product:
 - Name/title hint: ${productName}
@@ -193,8 +196,8 @@ Return ONLY valid JSON with no markdown or extra text:
 
 Rules:
 - Title: 60-80 characters, plain and descriptive, include the occasion and product type, UK English
-- Description: 2-3 short natural paragraphs (no bullet points, no headers). Talk about who it's for, what the card/print is like, why someone would want it. End with this exact block on a new line:\n${details}
+- Description: 3-4 paragraphs. First paragraph: hook the reader — who is this for and why will they love it? Be specific and a little cheeky if it fits. Second paragraph: paint a picture of the moment — getting it, giving it, seeing it on a wall. Third paragraph: sell the quality without being boring about it. End with this exact block on a new line:\n${details}
 - Meta title: under 60 characters, plain and clear
-- Meta description: 150-160 characters, natural and enticing, no hype
+- Meta description: 150-160 characters, punchy and enticing — make someone want to click
 `.trim();
 }
