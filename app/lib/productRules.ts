@@ -58,18 +58,17 @@ BRAND RULES (never break):
 `.trim();
 
 const HARD_CARD_RULES = `
-CARD RULES:
+CARD RULES — THESE ARE ABSOLUTE AND CANNOT BE BROKEN:
 - The card design shown in the reference image must be reproduced exactly as a physical card
 - Never alter the artwork, text, colours, fonts, layout, or alignment
-- The card is a standard single-fold greeting card
-- FOLD/SPINE is on the LEFT edge — this edge is sealed and closed
-- OPENING is on the RIGHT edge only — this is the only edge where the two layers of card separate
-- TOP edge: closed and sealed
-- BOTTOM edge: closed and sealed
-- The card opens like a book: spine left, pages open to the right
-- NEVER show any opening at the top, left, or bottom edges
-- NEVER show the card opening at the bottom — this is wrong and must not happen
-- Show the front face of the card fully — no cropping of design edges
+- The card is a standard single-fold greeting card that opens like a book
+- SPINE/FOLD: LEFT edge only — sealed and closed, never open
+- OPENING: RIGHT edge only — the only place the two layers can separate
+- TOP edge: sealed and closed
+- BOTTOM edge: sealed and closed — NEVER open at the bottom, this is critically wrong
+- The card must NEVER appear landscape-oriented with the fold at the bottom or top
+- The card must ALWAYS stand upright with the fold on the left side
+- Show the full front face — no cropping of any edge
 `.trim();
 
 const HARD_PRINT_RULES = `
@@ -101,15 +100,15 @@ export function buildImagePrompt(
   const productRules = productType === "card" ? HARD_CARD_RULES : HARD_PRINT_RULES;
 
   const SIZE_ASPECTS: Record<string, string> = {
-    A6: "portrait rectangle, aspect ratio 1:1.41 (width:height) — taller than wide",
-    A5: "portrait rectangle, aspect ratio 1:1.41 (width:height) — taller than wide",
-    A4: "portrait rectangle, aspect ratio 1:1.41 (width:height) — taller than wide",
-    A3: "portrait rectangle, aspect ratio 1:1.41 (width:height) — taller than wide",
-    A2: "portrait rectangle, aspect ratio 1:1.41 (width:height) — taller than wide",
-    Square: "perfect square, aspect ratio 1:1 (equal width and height)",
+    A6: "portrait rectangle — taller than wide, aspect ratio 1:1.41. NEVER square, NEVER landscape.",
+    A5: "portrait rectangle — taller than wide, aspect ratio 1:1.41. NEVER square, NEVER landscape.",
+    A4: "portrait rectangle — taller than wide, aspect ratio 1:1.41. NEVER square, NEVER landscape.",
+    A3: "portrait rectangle — taller than wide, aspect ratio 1:1.41. NEVER square, NEVER landscape.",
+    A2: "portrait rectangle — taller than wide, aspect ratio 1:1.41. NEVER square, NEVER landscape.",
+    Square: "perfect square — equal width and height, aspect ratio 1:1. NEVER portrait, NEVER landscape.",
   };
   const sizeNote = size
-    ? `Size: ${size} — render the product as a ${SIZE_ASPECTS[size] ?? "portrait rectangle"}. This aspect ratio is mandatory — do not make it square unless the size says Square.`
+    ? `PRODUCT SIZE (mandatory — do not deviate): ${size} — the physical product must be rendered as a ${SIZE_ASPECTS[size] ?? "portrait rectangle"}. Every image in the set must show the same consistent size and shape.`
     : "";
 
   const extraNote = extraNotes?.trim()
@@ -121,18 +120,19 @@ Create a photorealistic lifestyle product mockup image at 600x600 pixels.
 
 The reference image attached shows the artwork for a ${productType}. Use it to render the product accurately in the scene below.
 
+MANDATORY PRODUCT RULES — READ FIRST, NEVER BREAK:
+${productRules}
+
+${sizeNote}
+
 SCENE TO CREATE:
 ${recipe}
-
-${productRules}
 
 THEME STYLING:
 ${themeRules}
 
 ROOM STYLING:
 ${roomRules}
-
-${sizeNote}
 
 ${BRAND_RULES}
 
