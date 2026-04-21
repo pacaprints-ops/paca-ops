@@ -1,6 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+
+const RESULTS_KEY = "create-product-results";
 
 type Copy = {
   title: string;
@@ -87,6 +89,26 @@ export default function CreateProductPage() {
   const [shopifyUrl, setShopifyUrl] = useState<string>("");
   const [shopifyError, setShopifyError] = useState<string>("");
 
+  // Restore results from sessionStorage on mount (survives mobile download navigation)
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem(RESULTS_KEY);
+      if (!saved) return;
+      const { copy: c, images: imgs, productName: name } = JSON.parse(saved);
+      if (c) setCopy(c);
+      if (imgs) setImages(imgs);
+      if (name) setProductName(name);
+    } catch {}
+  }, []);
+
+  // Save results to sessionStorage whenever they change
+  useEffect(() => {
+    if (!copy && images.every((i) => i === null)) return;
+    try {
+      sessionStorage.setItem(RESULTS_KEY, JSON.stringify({ copy, images, productName }));
+    } catch {}
+  }, [copy, images, productName]);
+
   const sizes = productType === "card" ? CARD_SIZES : PRINT_SIZES;
   const recipeLabels =
     productType === "card" ? RECIPE_LABELS : PRINT_RECIPE_LABELS;
@@ -137,6 +159,7 @@ export default function CreateProductPage() {
     setImageErrors(["", "", "", "", ""]);
     setShopifyUrl("");
     setShopifyError("");
+    try { sessionStorage.removeItem(RESULTS_KEY); } catch {}
 
     // Step 1: Generate copy
     setStatus("Writing product copy…");
