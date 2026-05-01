@@ -132,6 +132,26 @@ function ModalShell({
   );
 }
 
+const HMRC_CATEGORIES = [
+  "Advertising & Marketing",
+  "Bank Charges & Fees",
+  "Equipment & Tools",
+  "Insurance",
+  "Office Supplies & Stationery",
+  "Phone & Internet",
+  "Platform Fees",
+  "Postage & Packaging",
+  "Professional Fees",
+  "Rent & Workspace",
+  "Repairs & Maintenance",
+  "Software & Subscriptions",
+  "Stock & Materials",
+  "Training & Development",
+  "Travel & Transport",
+  "Wages & Salaries",
+  "Other Business Expenses",
+];
+
 export default function FinancePage() {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
@@ -155,7 +175,7 @@ export default function FinancePage() {
   const [addExpenseOpen, setAddExpenseOpen] = useState(false);
   const [exDate, setExDate] = useState<string>(new Date().toISOString().slice(0, 10));
   const [exAmount, setExAmount] = useState<string>("0");
-  const [exCategory, setExCategory] = useState<string>("Supplies");
+  const [exCategory, setExCategory] = useState<string>("");
   const [exVendor, setExVendor] = useState<string>("");
   const [exPaidBy, setExPaidBy] = useState<string>("Business");
   const [exNotes, setExNotes] = useState<string>("");
@@ -630,12 +650,17 @@ export default function FinancePage() {
 
           <label className="block text-sm">
             <div className="text-xs font-medium text-gray-700 mb-1">Category</div>
-            <input
-              className="w-full rounded-md border px-3 py-2 text-sm"
-              value={exCategory}
+            <select
+              className="w-full rounded-md border bg-white px-3 py-2 text-sm"
+              value={HMRC_CATEGORIES.includes(exCategory) ? exCategory : ""}
               onChange={(e) => setExCategory(e.target.value)}
-              placeholder="Supplies, Platform, Shipping…"
-            />
+            >
+              <option value="" disabled>Select a category…</option>
+              {HMRC_CATEGORIES.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+            <div className="mt-1 text-[11px] text-gray-500">Categories aligned to HMRC Self Assessment (SA103).</div>
           </label>
 
           <label className="block text-sm">

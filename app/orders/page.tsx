@@ -160,7 +160,7 @@ export default async function OrdersPage({
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <ExportOrdersButton rows={rows} />
+          <ExportOrdersButton rows={rows} from={p_from} to={isoDate(addDays(new Date(p_to), -1))} />
           <Link
             href="/orders/create"
             className="rounded-lg border bg-white px-4 py-2 text-sm font-semibold text-gray-900 shadow-sm"
@@ -246,6 +246,29 @@ export default async function OrdersPage({
                   }`}
                 >
                   {label}
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* UK Tax year quick-select */}
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold text-gray-900">Tax year</span>
+          <div className="flex flex-wrap gap-2">
+            {[2023, 2024, 2025, 2026].map((y) => {
+              const tyFrom = `${y}-04-06`;
+              const tyTo = `${y + 1}-04-05`;
+              const active = timeframe === "custom" && customFrom === tyFrom && customTo === tyTo;
+              return (
+                <Link
+                  key={y}
+                  href={`/orders?timeframe=custom&from=${tyFrom}&to=${tyTo}${platform ? `&platform=${platform}` : ""}${platformCustom ? `&platform_custom=${platformCustom}` : ""}`}
+                  className={`rounded-lg px-3 py-1 text-sm ${
+                    active ? "bg-gray-900 text-white" : "border bg-white text-gray-900"
+                  }`}
+                >
+                  {y}/{String(y + 1).slice(2)}
                 </Link>
               );
             })}

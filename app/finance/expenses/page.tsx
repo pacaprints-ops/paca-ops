@@ -108,6 +108,26 @@ function ModalShell({
   );
 }
 
+const HMRC_CATEGORIES = [
+  "Advertising & Marketing",
+  "Bank Charges & Fees",
+  "Equipment & Tools",
+  "Insurance",
+  "Office Supplies & Stationery",
+  "Phone & Internet",
+  "Platform Fees",
+  "Postage & Packaging",
+  "Professional Fees",
+  "Rent & Workspace",
+  "Repairs & Maintenance",
+  "Software & Subscriptions",
+  "Stock & Materials",
+  "Training & Development",
+  "Travel & Transport",
+  "Wages & Salaries",
+  "Other Business Expenses",
+];
+
 function toNum(s: string) {
   const n = Number(s);
   return Number.isFinite(n) ? n : 0;
@@ -504,11 +524,20 @@ export default function ExpensesPage() {
 
           <label className="block text-sm">
             <div className="text-xs font-medium text-gray-700 mb-1">Category</div>
-            <input
-              className="w-full rounded-md border px-3 py-2 text-sm"
-              value={exCategory}
-              onChange={(e) => setExCategory(e.target.value)}
-            />
+            <select
+              className="w-full rounded-md border bg-white px-3 py-2 text-sm"
+              value={HMRC_CATEGORIES.includes(exCategory) ? exCategory : "__custom__"}
+              onChange={(e) => setExCategory(e.target.value === "__custom__" ? exCategory : e.target.value)}
+            >
+              <option value="" disabled>Select a category…</option>
+              {HMRC_CATEGORIES.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+              {!HMRC_CATEGORIES.includes(exCategory) && exCategory && (
+                <option value="__custom__">{exCategory} (existing)</option>
+              )}
+            </select>
+            <div className="mt-1 text-[11px] text-gray-500">Categories aligned to HMRC Self Assessment (SA103).</div>
           </label>
 
           <label className="block text-sm">
