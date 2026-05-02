@@ -173,7 +173,7 @@ export default function FinancePage() {
 
   // add expense modal
   const [addExpenseOpen, setAddExpenseOpen] = useState(false);
-  const [exDate, setExDate] = useState<string>(new Date().toISOString().slice(0, 10));
+  const [exDate, setExDate] = useState<string>(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; });
   const [exAmount, setExAmount] = useState<string>("0");
   const [exCategory, setExCategory] = useState<string>("");
   const [exVendor, setExVendor] = useState<string>("");
@@ -183,7 +183,7 @@ export default function FinancePage() {
 
   // add trip modal
   const [addTripOpen, setAddTripOpen] = useState(false);
-  const [trDate, setTrDate] = useState<string>(new Date().toISOString().slice(0, 10));
+  const [trDate, setTrDate] = useState<string>(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; });
   const [trPerson, setTrPerson] = useState<string>("Carrie");
   const [trFrom, setTrFrom] = useState<string>("");
   const [trTo, setTrTo] = useState<string>("");

@@ -10,7 +10,11 @@ import LineItemsSection from "./LineItemsSection";
 type Option = { id: string; name: string };
 
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 // Optional money parser: "" -> null, "1.23" -> 1.23, invalid -> NaN
