@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { supabase } from "../../lib/supabaseClient";
+import MonzoImportModal from "./MonzoImportModal";
 
 type ExpenseRow = {
   id: string;
@@ -146,9 +147,15 @@ export default function ExpensesPage() {
 
   const [rows, setRows] = useState<ExpenseRow[]>([]);
   const [totalCount, setTotalCount] = useState<number>(0);
+  const [categoryTotals, setCategoryTotals] = useState<Record<string, number>>({});
+  const [showSummary, setShowSummary] = useState(false);
 
   const [pageSize, setPageSize] = useState<number>(50);
   const [page, setPage] = useState<number>(0);
+
+  // add modal
+  const [addOpen, setAddOpen] = useState(false);
+  const [addSaving, setAddSaving] = useState(false);
 
   // edit modal
   const [editOpen, setEditOpen] = useState(false);
@@ -195,6 +202,23 @@ export default function ExpensesPage() {
     setLoading(false);
   }
 
+  async function loadCategoryTotals() {
+    const { data, error } = await supabase
+      .from("expenses")
+      .select("category,amount")
+      .gte("expense_date", range.start)
+      .lt("expense_date", range.endExclusive);
+
+    if (error || !data) return;
+
+    const totals: Record<string, number> = {};
+    for (const row of data as { category: string; amount: number }[]) {
+      const cat = row.category || "Other Business Expenses";
+      totals[cat] = (totals[cat] ?? 0) + toNum(String(row.amount));
+    }
+    setCategoryTotals(totals);
+  }
+
   // reset to first page when filters change
   useEffect(() => {
     setPage(0);
@@ -205,6 +229,7 @@ export default function ExpensesPage() {
       setErrorMsg(e?.message ?? "Failed to load expenses");
       setLoading(false);
     });
+    loadCategoryTotals();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [range.start, range.endExclusive, debouncedQ, page, pageSize]);
 
@@ -224,6 +249,44 @@ export default function ExpensesPage() {
       e.notes ?? "",
     ]);
     downloadCSV(`expenses_${taxYearLabel(taxYearStart)}_page${page + 1}.csv`, [header, ...lines]);
+  }
+
+  function openAdd() {
+    setErrorMsg("");
+    setExDate(new Date().toISOString().slice(0, 10));
+    setExAmount("0");
+    setExCategory("");
+    setExVendor("");
+    setExPaidBy("Business");
+    setExNotes("");
+    setAddOpen(true);
+  }
+
+  async function saveAdd() {
+    setErrorMsg("");
+    if (!exDate) return setErrorMsg("Date is required.");
+    if (!exCategory.trim()) return setErrorMsg("Category is required.");
+    if (!exPaidBy.trim()) return setErrorMsg("Paid by is required.");
+    const amount = toNum(exAmount);
+    if (!Number.isFinite(amount) || amount <= 0) return setErrorMsg("Amount must be > 0.");
+
+    setAddSaving(true);
+    const { error } = await supabase.rpc("create_expense", {
+      p_expense_date: exDate,
+      p_amount: amount,
+      p_category: exCategory.trim(),
+      p_paid_by: exPaidBy.trim(),
+      p_vendor: exVendor.trim() || null,
+      p_notes: exNotes.trim() || null,
+      p_source_type: "manual",
+      p_source_id: null,
+    });
+    setAddSaving(false);
+
+    if (error) { setErrorMsg(error.message); return; }
+
+    setAddOpen(false);
+    await load(); loadCategoryTotals();
   }
 
   function openEdit(e: ExpenseRow) {
@@ -270,7 +333,7 @@ export default function ExpensesPage() {
 
     setEditOpen(false);
     setEditRow(null);
-    await load();
+    await load(); loadCategoryTotals();
   }
 
   async function deleteExpense(e: ExpenseRow) {
@@ -289,7 +352,7 @@ export default function ExpensesPage() {
 
     // if we deleted the last row on the last page, step back one page
     if (rows.length === 1 && page > 0) setPage((p) => Math.max(0, p - 1));
-    else await load();
+    else await load(); loadCategoryTotals();
   }
 
   return (
@@ -301,6 +364,14 @@ export default function ExpensesPage() {
         </div>
 
         <div className="flex items-center gap-3">
+          <MonzoImportModal onDone={load} />
+          <button
+            type="button"
+            onClick={openAdd}
+            className="rounded-md bg-gray-900 px-3 py-2 text-sm font-semibold text-white hover:bg-gray-700"
+          >
+            + Add expense
+          </button>
           <Link href="/finance" className="text-sm text-gray-600 underline">
             Back to Finance
           </Link>
@@ -375,6 +446,60 @@ export default function ExpensesPage() {
             Export this page CSV
           </button>
         </div>
+      </div>
+
+      {/* Category totals summary */}
+      <div className="mb-4 rounded-xl border bg-white shadow-sm">
+        <button
+          type="button"
+          className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold text-gray-900 hover:bg-gray-50 rounded-xl"
+          onClick={() => setShowSummary((v) => !v)}
+        >
+          <span>Totals by HMRC category — {taxYearLabel(taxYearStart)}</span>
+          <span className="text-gray-400">{showSummary ? "▲" : "▼"}</span>
+        </button>
+
+        {showSummary ? (
+          <div className="border-t px-4 pb-4 pt-3">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left border-b">
+                  <th className="pb-2 font-semibold text-gray-700">Category (SA103)</th>
+                  <th className="pb-2 font-semibold text-gray-700 text-right">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {HMRC_CATEGORIES.filter((c) => (categoryTotals[c] ?? 0) > 0).map((c) => (
+                  <tr key={c} className="border-b last:border-b-0">
+                    <td className="py-1.5 text-gray-800">{c}</td>
+                    <td className="py-1.5 text-right font-semibold tabular-nums">
+                      £{(categoryTotals[c] ?? 0).toFixed(2)}
+                    </td>
+                  </tr>
+                ))}
+                {Object.keys(categoryTotals)
+                  .filter((c) => !HMRC_CATEGORIES.includes(c) && (categoryTotals[c] ?? 0) > 0)
+                  .map((c) => (
+                    <tr key={c} className="border-b last:border-b-0">
+                      <td className="py-1.5 text-gray-500 italic">{c}</td>
+                      <td className="py-1.5 text-right font-semibold tabular-nums">
+                        £{(categoryTotals[c] ?? 0).toFixed(2)}
+                      </td>
+                    </tr>
+                  ))}
+                <tr className="border-t-2 font-bold">
+                  <td className="pt-2 text-gray-900">Total expenses</td>
+                  <td className="pt-2 text-right tabular-nums">
+                    £{Object.values(categoryTotals).reduce((s, v) => s + v, 0).toFixed(2)}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            {Object.keys(categoryTotals).length === 0 ? (
+              <div className="text-sm text-gray-500 mt-2">No expenses in this tax year.</div>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       {/* Paged table */}
@@ -490,6 +615,56 @@ export default function ExpensesPage() {
           </div>
         </div>
       </div>
+
+      {/* Add Modal */}
+      <ModalShell
+        open={addOpen}
+        title="Add expense"
+        onClose={() => { if (addSaving) return; setAddOpen(false); }}
+      >
+        <div className="space-y-3">
+          <label className="block text-sm">
+            <div className="text-xs font-medium text-gray-700 mb-1">Date</div>
+            <input type="date" className="w-full rounded-md border px-3 py-2 text-sm" value={exDate} onChange={(e) => setExDate(e.target.value)} />
+          </label>
+          <label className="block text-sm">
+            <div className="text-xs font-medium text-gray-700 mb-1">Amount</div>
+            <input inputMode="decimal" className="w-full rounded-md border px-3 py-2 text-sm" value={exAmount} onChange={(e) => setExAmount(e.target.value)} />
+          </label>
+          <label className="block text-sm">
+            <div className="text-xs font-medium text-gray-700 mb-1">Category</div>
+            <select
+              className="w-full rounded-md border bg-white px-3 py-2 text-sm"
+              value={HMRC_CATEGORIES.includes(exCategory) ? exCategory : ""}
+              onChange={(e) => setExCategory(e.target.value)}
+            >
+              <option value="" disabled>Select a category…</option>
+              {HMRC_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <div className="mt-1 text-[11px] text-gray-500">Categories aligned to HMRC Self Assessment (SA103).</div>
+          </label>
+          <label className="block text-sm">
+            <div className="text-xs font-medium text-gray-700 mb-1">Vendor</div>
+            <input className="w-full rounded-md border px-3 py-2 text-sm" value={exVendor} onChange={(e) => setExVendor(e.target.value)} placeholder="Optional" />
+          </label>
+          <label className="block text-sm">
+            <div className="text-xs font-medium text-gray-700 mb-1">Paid by</div>
+            <select className="w-full rounded-md border bg-white px-3 py-2 text-sm" value={exPaidBy} onChange={(e) => setExPaidBy(e.target.value)}>
+              <option>Business</option>
+              <option>Carrie</option>
+              <option>Vicky</option>
+            </select>
+          </label>
+          <label className="block text-sm">
+            <div className="text-xs font-medium text-gray-700 mb-1">Notes</div>
+            <input className="w-full rounded-md border px-3 py-2 text-sm" value={exNotes} onChange={(e) => setExNotes(e.target.value)} placeholder="Optional" />
+          </label>
+          {errorMsg ? <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{errorMsg}</div> : null}
+          <button type="button" className="w-full rounded-md bg-gray-900 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60" disabled={addSaving} onClick={saveAdd}>
+            {addSaving ? "Saving…" : "Save expense"}
+          </button>
+        </div>
+      </ModalShell>
 
       {/* Edit Modal */}
       <ModalShell

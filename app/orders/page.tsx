@@ -374,7 +374,7 @@ export default async function OrdersPage({
                     />
                   </td>
 
-                  <td className="px-4 py-3 whitespace-nowrap hidden sm:table-cell">
+                  <td className={`px-4 py-3 whitespace-nowrap hidden sm:table-cell${!o.is_refunded && fees === 0 ? " bg-red-50" : ""}`}>
                     <MoneyQuickEdit
                       orderId={o.id}
                       currentValue={fees}
@@ -383,13 +383,14 @@ export default async function OrdersPage({
                       rpcName="update_order_fees"
                       rpcParam="p_platform_fees"
                     />
+                    {!o.is_refunded && fees === 0 ? <div className="text-[10px] text-red-600 font-semibold">Not entered</div> : null}
                   </td>
 
                   <td className="px-4 py-3 whitespace-nowrap">
                     <RevenueQuickEdit orderId={o.id} currentRevenue={o.revenue} />
                   </td>
 
-                  <td className="px-4 py-3 whitespace-nowrap hidden sm:table-cell">
+                  <td className={`px-4 py-3 whitespace-nowrap hidden sm:table-cell${!o.is_refunded && shipping === 0 ? " bg-red-50" : ""}`}>
                     <MoneyQuickEdit
                       orderId={o.id}
                       currentValue={shipping}
@@ -398,6 +399,7 @@ export default async function OrdersPage({
                       rpcName="update_order_shipping"
                       rpcParam="p_shipping_cost"
                     />
+                    {!o.is_refunded && shipping === 0 ? <div className="text-[10px] text-red-600 font-semibold">Not entered</div> : null}
                   </td>
 
                   <td className="px-4 py-3 whitespace-nowrap hidden sm:table-cell">{formatGBP(cogs)}</td>
