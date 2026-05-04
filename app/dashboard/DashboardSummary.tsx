@@ -142,8 +142,9 @@ export default function DashboardSummary() {
   const [refundedCount, setRefundedCount] = useState<number>(0);
   const [lowStockCount, setLowStockCount] = useState<number>(0);
 
-  // Shipping sum for timeframe (non-refunded)
+  // Shipping + revenue sums for timeframe (non-refunded) — queried directly to avoid RPC revenue bug
   const [shippingSum, setShippingSum] = useState<number>(0);
+  const [revenueSum, setRevenueSum] = useState<number | null>(null);
 
   const [monthlyLoading, setMonthlyLoading] = useState<boolean>(true);
   const [monthlyError, setMonthlyError] = useState<string>("");
@@ -237,7 +238,7 @@ export default function DashboardSummary() {
   async function loadShippingSum() {
     let q = supabase
       .from("orders")
-      .select("shipping_cost,is_refunded")
+      .select("shipping_cost,revenue,is_refunded")
       .gte("order_date", fromDate)
       .lt("order_date", toDateExclusive);
 
@@ -249,11 +250,13 @@ export default function DashboardSummary() {
     const { data, error } = await q;
     if (error) {
       setShippingSum(0);
+      setRevenueSum(null);
       return;
     }
 
-    const sum = (data ?? []).reduce((acc: number, r: any) => acc + toNumber(r?.shipping_cost), 0);
-    setShippingSum(sum);
+    const rows = data ?? [];
+    setShippingSum(rows.reduce((acc: number, r: any) => acc + toNumber(r?.shipping_cost), 0));
+    setRevenueSum(rows.reduce((acc: number, r: any) => acc + toNumber(r?.revenue), 0));
   }
 
   async function loadRefundedCount() {
@@ -471,8 +474,9 @@ export default function DashboardSummary() {
   const yearA = now.getFullYear();
   const yearB = yearA - 1;
 
-  // Cards: payout revenue, ALL-IN cost (cogs + shipping), profit = revenue - cost
-  const revenuePayout = loading || !summary ? null : toNumber(summary.revenue);
+  // Cards: payout revenue (from direct query — RPC revenue has a discount-deduction bug),
+  // ALL-IN cost (cogs + shipping), profit = revenue - cost
+  const revenuePayout = loading || revenueSum === null ? null : revenueSum;
   const cogsOnly = loading || !summary ? null : toNumber(summary.cogs);
   const costAllIn = revenuePayout === null || cogsOnly === null ? null : cogsOnly + toNumber(shippingSum);
   const profitAllIn = revenuePayout === null || costAllIn === null ? null : revenuePayout - costAllIn;
