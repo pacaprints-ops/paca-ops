@@ -52,6 +52,8 @@ function toNum(s: string) {
   return Number.isFinite(n) ? n : 0;
 }
 
+type Option = { id: string; name: string };
+
 export default function OrderEditPage() {
   const params = useParams<{ id: string }>();
   const orderId = params?.id;
@@ -66,6 +68,15 @@ export default function OrderEditPage() {
 
   const [order, setOrder] = useState<OrderHeader | null>(null);
   const [lines, setLines] = useState<OrderLine[]>([]);
+
+  // add line item
+  const [products, setProducts] = useState<Option[]>([]);
+  const [recipes, setRecipes] = useState<Option[]>([]);
+  const [newProductName, setNewProductName] = useState("");
+  const [newRecipeId, setNewRecipeId] = useState("");
+  const [newQty, setNewQty] = useState("1");
+  const [addingLine, setAddingLine] = useState(false);
+  const [addLineErr, setAddLineErr] = useState("");
 
   // editable header fields
   const [orderDate, setOrderDate] = useState<string>("");
@@ -133,8 +144,45 @@ export default function OrderEditPage() {
       setErrorMsg(e?.message ?? "Failed to load order");
       setLoading(false);
     });
+    supabase.from("products").select("id,name").order("name").then(({ data }) => setProducts((data ?? []) as Option[]));
+    supabase.from("recipes").select("id,name").order("name").then(({ data }) => setRecipes((data ?? []) as Option[]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderId]);
+
+  async function addLineItem() {
+    if (!orderId) return;
+    setAddLineErr("");
+    const productName = newProductName.trim();
+    if (!productName) { setAddLineErr("Product name is required."); return; }
+    if (!newRecipeId) { setAddLineErr("Recipe is required."); return; }
+    const qty = parseInt(newQty) || 1;
+
+    setAddingLine(true);
+    try {
+      const { data: existing } = await supabase.from("products").select("id").ilike("name", productName).maybeSingle();
+      let productId = existing?.id;
+      if (!productId) {
+        const { data: created, error: cErr } = await supabase.from("products").insert({ name: productName }).select("id").single();
+        if (cErr) throw cErr;
+        productId = created.id;
+        setProducts(prev => [...prev, { id: productId!, name: productName }]);
+      }
+      const { error } = await supabase.rpc("add_order_product", {
+        p_order_id: orderId,
+        p_recipe_id: newRecipeId,
+        p_quantity: qty,
+        p_product_id: productId,
+      });
+      if (error) throw error;
+      setNewProductName("");
+      setNewRecipeId("");
+      setNewQty("1");
+      await load(orderId);
+    } catch (e: any) {
+      setAddLineErr(e?.message ?? "Failed to add line item");
+    }
+    setAddingLine(false);
+  }
 
   async function saveFlags(nextSettled: boolean, nextRefunded: boolean, nextNotes: string) {
     if (!orderId || !order) return;
@@ -509,14 +557,14 @@ export default function OrderEditPage() {
             </div>
           </section>
 
-          {/* Lines read-only */}
+          {/* Lines */}
           <section className="rounded-lg border bg-white p-4">
             <div className="font-semibold text-gray-900 mb-3">Line items</div>
 
             {lines.length === 0 ? (
-              <div className="text-sm text-gray-600">No line items.</div>
+              <div className="text-sm text-gray-500 mb-3">No line items.</div>
             ) : (
-              <div className="overflow-x-auto rounded-md border">
+              <div className="overflow-x-auto rounded-md border mb-4">
                 <table className="min-w-full text-sm bg-white">
                   <thead className="border-b bg-gray-50">
                     <tr className="text-left">
@@ -539,6 +587,53 @@ export default function OrderEditPage() {
                 </table>
               </div>
             )}
+
+            {/* Add line item */}
+            <div className="border-t pt-3">
+              <div className="text-xs font-medium text-gray-700 mb-2">Add line item</div>
+              {addLineErr && <div className="mb-2 text-xs text-red-600">{addLineErr}</div>}
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-4">
+                <div className="sm:col-span-2">
+                  <input
+                    list="product-options"
+                    className="w-full rounded-md border px-3 py-2 text-sm"
+                    placeholder="Product name"
+                    value={newProductName}
+                    onChange={(e) => setNewProductName(e.target.value)}
+                  />
+                  <datalist id="product-options">
+                    {products.map((p) => <option key={p.id} value={p.name} />)}
+                  </datalist>
+                </div>
+                <div>
+                  <select
+                    className="w-full rounded-md border px-3 py-2 text-sm bg-white"
+                    value={newRecipeId}
+                    onChange={(e) => setNewRecipeId(e.target.value)}
+                  >
+                    <option value="">Select recipe…</option>
+                    {recipes.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+                  </select>
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    min="1"
+                    className="w-20 rounded-md border px-3 py-2 text-sm"
+                    value={newQty}
+                    onChange={(e) => setNewQty(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    onClick={addLineItem}
+                    disabled={addingLine}
+                    className="flex-1 rounded-md bg-gray-900 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                  >
+                    {addingLine ? "Adding…" : "Add"}
+                  </button>
+                </div>
+              </div>
+            </div>
           </section>
         </div>
       )}

@@ -165,6 +165,18 @@ export default async function OrdersPage({
         <div className="flex flex-wrap items-center gap-3">
           <ExportOrdersButton rows={rows} from={p_from} to={isoDate(addDays(new Date(p_to), -1))} />
           <Link
+            href="/orders/settle"
+            className="rounded-lg border bg-white px-4 py-2 text-sm font-medium text-gray-600 shadow-sm"
+          >
+            Settle
+          </Link>
+          <Link
+            href="/orders/import"
+            className="rounded-lg border bg-white px-4 py-2 text-sm font-medium text-gray-600 shadow-sm"
+          >
+            Import CSV
+          </Link>
+          <Link
             href="/orders/create"
             className="rounded-lg border bg-white px-4 py-2 text-sm font-semibold text-gray-900 shadow-sm"
           >
