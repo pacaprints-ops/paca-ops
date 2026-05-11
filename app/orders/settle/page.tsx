@@ -104,7 +104,7 @@ export default function SettleOrdersPage() {
         } else {
           const { error: updateErr } = await supabase
             .from("orders")
-            .update({ revenue: row.payout, platform_fees: row.platform_fees })
+            .update({ revenue: row.payout, platform_fees: row.platform_fees, is_settled: true })
             .eq("id", existing.id);
           if (updateErr) throw updateErr;
           out.push({ ref: row.platform_order_ref, action: "updated" });
