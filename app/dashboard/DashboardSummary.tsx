@@ -511,6 +511,20 @@ export default function DashboardSummary() {
           </div>
 
           <div className="flex flex-wrap items-end gap-3">
+            <button
+              type="button"
+              className="pp-btn pp-btn-secondary"
+              onClick={() => {
+                loadTopSummary();
+                loadRefundedCount();
+                loadLowStockAlert();
+                loadMonthlyTable();
+                loadShippingSum();
+              }}
+            >
+              Refresh
+            </button>
+
             <div className="flex flex-col gap-1">
               <label className="text-sm font-semibold text-slate-900">Platform</label>
               <select className="pp-select" value={platform} onChange={(e) => setPlatform(e.target.value)}>
