@@ -38,5 +38,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: msg }, { status: res.status });
   }
 
-  return NextResponse.json({ ok: true, imageId: data.image?.id });
+  const storeHandle = store.replace(".myshopify.com", "");
+  const adminUrl = `https://admin.shopify.com/store/${storeHandle}/products/${productId}`;
+
+  return NextResponse.json({ ok: true, imageId: data.image?.id, adminUrl });
 }
