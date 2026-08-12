@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import Link from "next/link";
 import { supabase } from "../../lib/supabaseClient";
+import { feeAmount } from "../../lib/money";
 
 type ParsedRow = {
   platform_order_ref: string;
@@ -42,7 +43,7 @@ function parseCsv(text: string): ParsedRow[] {
     rows.push({
       platform_order_ref: ref,
       payout: parseFloat(cols[1]) || 0,
-      platform_fees: parseFloat(cols[2]) || 0,
+      platform_fees: feeAmount(cols[2]),
     });
   }
   return rows;

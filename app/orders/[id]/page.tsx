@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
+import { feeAmount } from "../../lib/money";
 
 type OrderHeader = {
   id: string;
@@ -268,7 +269,7 @@ export default function OrderEditPage() {
       p_discounts: toNum(discounts),
 
       p_gross_revenue: toNum(grossRevenue),
-      p_platform_fees: toNum(platformFees),
+      p_platform_fees: feeAmount(platformFees),
       p_cogs_override: cogsOverrideValue,
     });
 

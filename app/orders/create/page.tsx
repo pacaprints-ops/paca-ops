@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../lib/supabaseClient";
+import { feeAmount } from "../../lib/money";
 import LineItemsSection from "./LineItemsSection";
 
 type Option = { id: string; name: string };
@@ -149,7 +150,7 @@ export default function CreateOrderPage() {
       const { error: moneyErr } = await supabase.rpc("update_order_money", {
         p_order_id: orderId,
         p_gross_revenue: grossNum,
-        p_platform_fees: feesNum ?? 0,
+        p_platform_fees: feeAmount(feesNum ?? 0),
         p_payout: payoutNum,
         p_shipping_cost: shipNum,
         p_discounts: discNum ?? 0,
