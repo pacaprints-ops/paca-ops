@@ -4,6 +4,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
+import { fetchAllPages } from "../lib/fetchAllPages";
 import { seasonalEvents } from "../seasonal/events";
 
 type DashboardSummaryRow = {
@@ -236,25 +237,29 @@ export default function DashboardSummary() {
   }
 
   async function loadShippingSum() {
-    let q = supabase
-      .from("orders")
-      .select("shipping_cost,revenue,is_refunded")
-      .gte("order_date", fromDate)
-      .lt("order_date", toDateExclusive);
+    let rows: any[];
+    try {
+      rows = await fetchAllPages<any>((rangeFrom, rangeTo) => {
+        let q = supabase
+          .from("orders")
+          .select("shipping_cost,revenue,is_refunded")
+          .gte("order_date", fromDate)
+          .lt("order_date", toDateExclusive)
+          .order("id", { ascending: true });
 
-    if (platformValueToSend) q = q.eq("platform", platformValueToSend);
+        if (platformValueToSend) q = q.eq("platform", platformValueToSend);
 
-    // Exclude refunded
-    q = q.or("is_refunded.is.null,is_refunded.eq.false");
+        // Exclude refunded
+        q = q.or("is_refunded.is.null,is_refunded.eq.false");
 
-    const { data, error } = await q;
-    if (error) {
+        return q.range(rangeFrom, rangeTo);
+      });
+    } catch {
       setShippingSum(0);
       setRevenueSum(null);
       return;
     }
 
-    const rows = data ?? [];
     setShippingSum(rows.reduce((acc: number, r: any) => acc + toNumber(r?.shipping_cost), 0));
     setRevenueSum(rows.reduce((acc: number, r: any) => acc + toNumber(r?.revenue), 0));
   }
@@ -365,21 +370,21 @@ export default function DashboardSummary() {
       const from = `${y}-01-01`;
       const to = `${y + 1}-01-01`;
 
-      let q = supabase
-        .from("orders")
-        .select("order_date,revenue,total_cost,gross_profit,is_refunded")
-        .gte("order_date", from)
-        .lt("order_date", to);
+      return await fetchAllPages<OrderRow>((rangeFrom, rangeTo) => {
+        let q = supabase
+          .from("orders")
+          .select("order_date,revenue,total_cost,gross_profit,is_refunded")
+          .gte("order_date", from)
+          .lt("order_date", to)
+          .order("id", { ascending: true });
 
-      if (platformFilter) q = q.eq("platform", platformFilter);
+        if (platformFilter) q = q.eq("platform", platformFilter);
 
-      // Exclude refunded
-      q = q.or("is_refunded.is.null,is_refunded.eq.false");
+        // Exclude refunded
+        q = q.or("is_refunded.is.null,is_refunded.eq.false");
 
-      const { data, error } = await q;
-      if (error) throw new Error(error.message);
-
-      return (data ?? []) as OrderRow[];
+        return q.range(rangeFrom, rangeTo);
+      });
     }
 
     try {

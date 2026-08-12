@@ -6,6 +6,7 @@ import MoneyQuickEdit from "./MoneyQuickEdit";
 import PlatformQuickEdit from "./PlatformQuickEdit";
 import OrderFlagsQuickToggle from "./OrderFlagsQuickToggle";
 import { supabase } from "../lib/supabaseClient";
+import { fetchAllPages } from "../lib/fetchAllPages";
 
 type OrderRow = {
   id: string;
@@ -116,25 +117,28 @@ export default async function OrdersPage({
   if (platform === "custom") p_platform = platformCustom.trim() || null;
   else if (platform) p_platform = platform;
 
-  const { data, error } = await supabase.rpc("list_orders", {
-    p_from,
-    p_to,
-    p_platform,
-    p_search: q.trim() || null,
-  });
-
-  if (error) {
+  let rows: OrderRow[];
+  try {
+    rows = await fetchAllPages<OrderRow>((rangeFrom, rangeTo) =>
+      supabase
+        .rpc("list_orders", {
+          p_from,
+          p_to,
+          p_platform,
+          p_search: q.trim() || null,
+        })
+        .range(rangeFrom, rangeTo)
+    );
+  } catch (e: any) {
     return (
       <main className="p-6">
         <h1 className="text-2xl font-semibold text-gray-900">Orders</h1>
         <p className="mt-3 rounded-lg border bg-red-50 p-3 text-sm text-red-700">
-          Error loading orders: {error.message}
+          Error loading orders: {e?.message ?? String(e)}
         </p>
       </main>
     );
   }
-
-  const rows = (data ?? []) as OrderRow[];
 
   function setParamHref(key: string, value: string) {
     const qs = new URLSearchParams();
@@ -389,7 +393,7 @@ export default async function OrdersPage({
                     />
                   </td>
 
-                  <td className={`px-4 py-3 whitespace-nowrap hidden sm:table-cell${!o.is_refunded && fees === 0 ? " bg-red-50" : ""}`}>
+                  <td className={`px-4 py-3 whitespace-nowrap hidden sm:table-cell${!o.is_refunded && !o.is_settled && fees === 0 ? " bg-red-50" : ""}`}>
                     <MoneyQuickEdit
                       orderId={o.id}
                       currentValue={fees}
@@ -398,14 +402,14 @@ export default async function OrdersPage({
                       rpcName="update_order_fees"
                       rpcParam="p_platform_fees"
                     />
-                    {!o.is_refunded && fees === 0 ? <div className="text-[10px] text-red-600 font-semibold">Not entered</div> : null}
+                    {!o.is_refunded && !o.is_settled && fees === 0 ? <div className="text-[10px] text-red-600 font-semibold">Not entered</div> : null}
                   </td>
 
                   <td className="px-4 py-3 whitespace-nowrap">
                     <RevenueQuickEdit orderId={o.id} currentRevenue={o.revenue} />
                   </td>
 
-                  <td className={`px-4 py-3 whitespace-nowrap hidden sm:table-cell${!o.is_refunded && shipping === 0 ? " bg-red-50" : ""}`}>
+                  <td className={`px-4 py-3 whitespace-nowrap hidden sm:table-cell${!o.is_refunded && !o.is_settled && shipping === 0 ? " bg-red-50" : ""}`}>
                     <MoneyQuickEdit
                       orderId={o.id}
                       currentValue={shipping}
@@ -414,7 +418,7 @@ export default async function OrdersPage({
                       rpcName="update_order_shipping"
                       rpcParam="p_shipping_cost"
                     />
-                    {!o.is_refunded && shipping === 0 ? <div className="text-[10px] text-red-600 font-semibold">Not entered</div> : null}
+                    {!o.is_refunded && !o.is_settled && shipping === 0 ? <div className="text-[10px] text-red-600 font-semibold">Not entered</div> : null}
                   </td>
 
                   <td className="px-4 py-3 whitespace-nowrap hidden sm:table-cell">{formatGBP(cogs)}</td>
