@@ -7,16 +7,52 @@ type Tool = {
   icon: string;
 };
 
-const sharedTools: Tool[] = [
+const operationsTools: Tool[] = [
+  {
+    title: "Personalise",
+    description: "Send personalisation requests to customers and track responses.",
+    href: "/admin/personalisation",
+    icon: "✉️",
+  },
+  {
+    title: "Portrait Lookup",
+    description: "Look up portrait orders and details.",
+    href: "/portrait-lookup",
+    icon: "🖼️",
+  },
+  {
+    title: "Create Product",
+    description: "Build and push a new product to Shopify.",
+    href: "/create-product",
+    icon: "➕",
+  },
+  {
+    title: "Recipes",
+    description: "Material recipes and cost breakdowns per product.",
+    href: "/recipes",
+    icon: "📋",
+  },
+  {
+    title: "Materials",
+    description: "Track material stock, costs and adjustments.",
+    href: "/materials",
+    icon: "📦",
+  },
+  {
+    title: "Seasonal Planner",
+    description: "Plan seasonal products and campaigns.",
+    href: "/seasonal",
+    icon: "📅",
+  },
+];
+
+const pacaTools: Tool[] = [
   {
     title: "Reminders",
     description: "Things to come back to — tick off as you go.",
     href: "/admin/reminders",
     icon: "📌",
   },
-];
-
-const pacaTools: Tool[] = [
   {
     title: "Platform Costs",
     description: "Track monthly platform fees. Toggle platforms off to see what you'd save.",
@@ -90,15 +126,12 @@ function ToolCard({ tool }: { tool: Tool }) {
   );
 }
 
-function PersonSection({ name, tools }: { name: string; tools: Tool[] }) {
+function Section({ title, tools }: { title: string; tools: Tool[] }) {
   return (
     <section>
       <h2 className="text-base font-extrabold text-slate-700 mb-3 flex items-center gap-2">
-        <span
-          className="inline-block w-2 h-2 rounded-full"
-          style={{ background: "var(--pp-teal)" }}
-        />
-        {name}
+        <span className="inline-block w-2 h-2 rounded-full" style={{ background: "var(--pp-teal)" }} />
+        {title}
       </h2>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {tools.map((t) => (
@@ -116,18 +149,33 @@ export default function AdminPage() {
       <p className="text-slate-500 text-sm mb-8">Internal tools — just for us.</p>
 
       <div className="flex flex-col gap-10">
-        <PersonSection name="Shared" tools={sharedTools} />
-        <PersonSection name="Paca" tools={pacaTools} />
-        <PersonSection name="Carrie" tools={carrieTools} />
-        <PersonSection name="Vicky" tools={vickyTools} />
+        <Section title="Operations" tools={operationsTools} />
+        <Section title="Paca" tools={pacaTools} />
+
+        <section>
+          <h2 className="text-base font-extrabold text-slate-700 mb-5 flex items-center gap-2">
+            <span className="inline-block w-2 h-2 rounded-full" style={{ background: "var(--pp-teal)" }} />
+            Staff
+          </h2>
+          <div className="flex flex-col gap-6">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-500 mb-3 uppercase tracking-wide">Carrie</h3>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {carrieTools.map((t) => <ToolCard key={t.href} tool={t} />)}
+              </div>
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-slate-500 mb-3 uppercase tracking-wide">Vicky</h3>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {vickyTools.map((t) => <ToolCard key={t.href} tool={t} />)}
+              </div>
+            </div>
+          </div>
+        </section>
       </div>
 
       <div className="mt-12 pt-6 border-t border-slate-100">
-        <Link
-          href="/logout"
-          prefetch={false}
-          className="text-sm text-slate-400 hover:text-slate-600 transition"
-        >
+        <Link href="/logout" prefetch={false} className="text-sm text-slate-400 hover:text-slate-600 transition">
           Log out
         </Link>
       </div>

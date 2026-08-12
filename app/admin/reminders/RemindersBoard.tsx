@@ -5,9 +5,16 @@ import { useState, useEffect } from "react";
 type ReminderItem = { id: string; text: string; done: boolean };
 type ReminderSection = { id: string; title: string; items: ReminderItem[] };
 
-const STORAGE_KEY = "pp-reminders-v3";
+const STORAGE_KEY = "pp-reminders-v4";
 
 const DEFAULT_SECTIONS: ReminderSection[] = [
+  {
+    id: "live-products",
+    title: "Paca Planners — Live",
+    items: [
+      { id: "girls-trip-live", text: "planmygirlstrip.co.uk — LIVE ✓ Stripe payments active, Google Search Console verified, sitemap submitted", done: true },
+    ],
+  },
   {
     id: "expenses",
     title: "Expenses to log",

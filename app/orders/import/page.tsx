@@ -189,35 +189,37 @@ export default function ImportOrdersPage() {
           });
           if (updateErr) throw updateErr;
 
-          // If this order has no line items yet, add one now so it appears in product sales.
-          // Use a direct insert (not the RPC) to avoid stock deduction on historical orders.
+          // A multi-item order arrives as several CSV rows sharing one order ref: the first
+          // creates the order, the rest land here. Add this row's product unless it is already
+          // on the order — checking per-product (not "has any items") so items 2..n aren't
+          // dropped, while re-importing the same file stays idempotent.
           const productName = row.product_name.trim();
           const recipeId = recipeMap[row.recipe.trim().toLowerCase()] ?? null;
           if (productName && recipeId) {
             const { data: existingItems } = await supabase
               .from("order_products")
+              .select("id,product_id")
+              .eq("order_id", existing.id);
+
+            const { data: productRow } = await supabase
+              .from("products")
               .select("id")
-              .eq("order_id", existing.id)
-              .limit(1);
+              .ilike("name", productName)
+              .maybeSingle();
 
-            if (!existingItems || existingItems.length === 0) {
-              const { data: productRow } = await supabase
+            let productId = productRow?.id;
+            if (!productId) {
+              const { data: newProduct, error: newProductErr } = await supabase
                 .from("products")
+                .insert({ name: productName })
                 .select("id")
-                .ilike("name", productName)
-                .maybeSingle();
+                .single();
+              if (newProductErr) throw newProductErr;
+              productId = newProduct.id;
+            }
 
-              let productId = productRow?.id;
-              if (!productId) {
-                const { data: newProduct, error: newProductErr } = await supabase
-                  .from("products")
-                  .insert({ name: productName })
-                  .select("id")
-                  .single();
-                if (newProductErr) throw newProductErr;
-                productId = newProduct.id;
-              }
-
+            const alreadyOnOrder = (existingItems ?? []).some((i) => i.product_id === productId);
+            if (!alreadyOnOrder) {
               const { error: lineErr } = await supabase.rpc("add_order_product", {
                 p_order_id: existing.id,
                 p_recipe_id: recipeId,

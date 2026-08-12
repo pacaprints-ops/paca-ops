@@ -9,17 +9,13 @@ const tabs = [
   { label: "Purchases", href: "/purchases" },
   { label: "Product Sales", href: "/products" },
   { label: "Finance", href: "/finance" },
-  { label: "Recipes", href: "/recipes" },
-  { label: "Materials", href: "/materials" },
-
-  // ✅ NEW PAGE
-  { label: "Seasonal Planner", href: "/seasonal" },
-  { label: "Create Product", href: "/create-product" },
   { label: "Admin", href: "/admin" },
 ];
 
 export default function TopNav() {
   const pathname = usePathname();
+
+  if (pathname.startsWith("/personalise")) return null;
 
   return (
     <header
