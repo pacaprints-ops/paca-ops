@@ -162,8 +162,8 @@ export default function DashboardSummary() {
   const [monthly, setMonthly] = useState<
     Array<{
       monthIndex: number;
-      a: { orders: number; revenue: number; cogs: number; profit: number };
-      b: { orders: number; revenue: number; cogs: number; profit: number };
+      a: { orders: number; revenue: number; cost: number; profit: number };
+      b: { orders: number; revenue: number; cost: number; profit: number };
     }>
   >([]);
 
@@ -409,7 +409,7 @@ export default function DashboardSummary() {
         const byMonth = Array.from({ length: 12 }, () => ({
           orders: 0,
           revenue: 0,
-          cogs: 0,
+          cost: 0,
           profit: 0,
         }));
 
@@ -422,11 +422,15 @@ export default function DashboardSummary() {
           // column, which is written once at entry and goes stale whenever payout,
           // postage or cost is corrected afterwards — it disagreed with the per-order
           // figures on 997 of 1,603 orders and overstated TY 25/26 by £768.
-          const cogs = orderCogs(r);
+          //
+          // "Cost" is COGS + postage, same as the cards above, so the two Cost figures
+          // on this page mean the same thing and Profit = Revenue - Cost in both.
+          const postage = toNumber(r.shipping_cost);
+          const cost = orderCogs(r) + postage;
           byMonth[m].orders += 1;
           byMonth[m].revenue += toNumber(r.revenue);
-          byMonth[m].cogs += cogs;
-          byMonth[m].profit += toNumber(r.revenue) - toNumber(r.shipping_cost) - cogs;
+          byMonth[m].cost += cost;
+          byMonth[m].profit += toNumber(r.revenue) - cost;
         }
         return byMonth;
       }
@@ -470,11 +474,11 @@ export default function DashboardSummary() {
       monthLabel(r.monthIndex),
       String(r.a.orders),
       String(r.a.revenue),
-      String(r.a.cogs),
+      String(r.a.cost),
       String(r.a.profit),
       String(r.b.orders),
       String(r.b.revenue),
-      String(r.b.cogs),
+      String(r.b.cost),
       String(r.b.profit),
     ]);
 
@@ -773,12 +777,12 @@ export default function DashboardSummary() {
 
                       <td>{formatInt(r.a.orders)}</td>
                       <td>{formatGBP(r.a.revenue)}</td>
-                      <td className="hidden sm:table-cell">{formatGBP(r.a.cogs)}</td>
+                      <td className="hidden sm:table-cell">{formatGBP(r.a.cost)}</td>
                       <td>{formatGBP(r.a.profit)}</td>
 
                       <td className="hidden md:table-cell">{formatInt(r.b.orders)}</td>
                       <td className="hidden md:table-cell">{formatGBP(r.b.revenue)}</td>
-                      <td className="hidden md:table-cell">{formatGBP(r.b.cogs)}</td>
+                      <td className="hidden md:table-cell">{formatGBP(r.b.cost)}</td>
                       <td className="hidden md:table-cell">{formatGBP(r.b.profit)}</td>
                     </tr>
                   ))}
