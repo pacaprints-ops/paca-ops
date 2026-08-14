@@ -22,7 +22,8 @@ type OrderRow = {
   order_date: string;
   revenue: number | string | null; // payout (net received) — raw orders column
   total_cost: number | string | null;
-  gross_profit: number | string | null;
+  cogs_override: number | string | null;
+  shipping_cost: number | string | null;
   is_refunded?: boolean | null;
 };
 
@@ -52,6 +53,14 @@ function addDays(d: Date, days: number) {
   x.setDate(x.getDate() + days);
   return x;
 }
+/**
+ * Cost of goods for one order, matching the Orders page exactly:
+ * a per-order override wins, otherwise the stored recipe cost.
+ */
+function orderCogs(r: any) {
+  return r?.cogs_override != null ? toNumber(r.cogs_override) : toNumber(r?.total_cost);
+}
+
 function toNumber(v: any) {
   const n = typeof v === "string" ? Number(v) : v;
   return Number.isFinite(n) ? n : 0;
@@ -146,6 +155,7 @@ export default function DashboardSummary() {
   // Shipping + revenue sums for timeframe (non-refunded) — queried directly to avoid RPC revenue bug
   const [shippingSum, setShippingSum] = useState<number>(0);
   const [revenueSum, setRevenueSum] = useState<number | null>(null);
+  const [cogsSum, setCogsSum] = useState<number | null>(null);
 
   const [monthlyLoading, setMonthlyLoading] = useState<boolean>(true);
   const [monthlyError, setMonthlyError] = useState<string>("");
@@ -242,7 +252,7 @@ export default function DashboardSummary() {
       rows = await fetchAllPages<any>((rangeFrom, rangeTo) => {
         let q = supabase
           .from("orders")
-          .select("shipping_cost,revenue,is_refunded")
+          .select("shipping_cost,revenue,total_cost,cogs_override,is_refunded")
           .gte("order_date", fromDate)
           .lt("order_date", toDateExclusive)
           .order("id", { ascending: true });
@@ -257,11 +267,16 @@ export default function DashboardSummary() {
     } catch {
       setShippingSum(0);
       setRevenueSum(null);
+      setCogsSum(null);
       return;
     }
 
     setShippingSum(rows.reduce((acc: number, r: any) => acc + toNumber(r?.shipping_cost), 0));
     setRevenueSum(rows.reduce((acc: number, r: any) => acc + toNumber(r?.revenue), 0));
+    // COGS from the same fields the Orders page uses, so the cards reconcile with the
+    // order list. The dashboard_summary RPC reports a different figure (£251 vs £1,037
+    // for TY 25/26) and cannot be tied back to what you see per order.
+    setCogsSum(rows.reduce((acc: number, r: any) => acc + orderCogs(r), 0));
   }
 
   async function loadRefundedCount() {
@@ -373,7 +388,7 @@ export default function DashboardSummary() {
       return await fetchAllPages<OrderRow>((rangeFrom, rangeTo) => {
         let q = supabase
           .from("orders")
-          .select("order_date,revenue,total_cost,gross_profit,is_refunded")
+          .select("order_date,revenue,total_cost,cogs_override,shipping_cost,is_refunded")
           .gte("order_date", from)
           .lt("order_date", to)
           .order("id", { ascending: true });
@@ -403,10 +418,15 @@ export default function DashboardSummary() {
           const m = d.getMonth();
           if (m < 0 || m > 11) continue;
 
+          // Profit is calculated here rather than read from the stored gross_profit
+          // column, which is written once at entry and goes stale whenever payout,
+          // postage or cost is corrected afterwards — it disagreed with the per-order
+          // figures on 997 of 1,603 orders and overstated TY 25/26 by £768.
+          const cogs = orderCogs(r);
           byMonth[m].orders += 1;
           byMonth[m].revenue += toNumber(r.revenue);
-          byMonth[m].cogs += toNumber(r.total_cost);
-          byMonth[m].profit += toNumber(r.gross_profit);
+          byMonth[m].cogs += cogs;
+          byMonth[m].profit += toNumber(r.revenue) - toNumber(r.shipping_cost) - cogs;
         }
         return byMonth;
       }
@@ -479,10 +499,14 @@ export default function DashboardSummary() {
   const yearA = now.getFullYear();
   const yearB = yearA - 1;
 
-  // Cards: payout revenue (from direct query — RPC revenue has a discount-deduction bug),
-  // ALL-IN cost (cogs + shipping), profit = revenue - cost
+  // Cards come from the orders table directly, not the dashboard_summary RPC:
+  //  - RPC revenue has a discount-deduction bug
+  //  - RPC cogs disagrees with the per-order costs (£251 vs £1,037 for TY 25/26),
+  //    so totals could not be reconciled against the Orders page
+  // revenue = payout, cost = cogs + postage, profit = revenue - cost, all from the
+  // same fields the Orders page shows, so the dashboard adds up to the order list.
   const revenuePayout = loading || revenueSum === null ? null : revenueSum;
-  const cogsOnly = loading || !summary ? null : toNumber(summary.cogs);
+  const cogsOnly = loading || cogsSum === null ? null : cogsSum;
   const costAllIn = revenuePayout === null || cogsOnly === null ? null : cogsOnly + toNumber(shippingSum);
   const profitAllIn = revenuePayout === null || costAllIn === null ? null : revenuePayout - costAllIn;
 
