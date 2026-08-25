@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { copy, productType } = await req.json();
+  const { copy, productType, price } = await req.json();
 
   if (!copy?.title) {
     return NextResponse.json({ error: "copy.title is required" }, { status: 400 });
@@ -34,12 +34,16 @@ export async function POST(req: NextRequest) {
     invite: "Invitation",
   };
 
+  const priceValue = typeof price === "string" ? price.trim() : "";
+  const isValidPrice = priceValue !== "" && !Number.isNaN(Number(priceValue)) && Number(priceValue) >= 0;
+
   const product = {
     title: copy.title,
     body_html: bodyHtml,
     vendor: "Paca Prints",
     product_type: PRODUCT_TYPE_LABELS[productType] ?? "Print",
     status: "draft",
+    ...(isValidPrice ? { variants: [{ price: priceValue }] } : {}),
     metafields: [
       {
         namespace: "global",

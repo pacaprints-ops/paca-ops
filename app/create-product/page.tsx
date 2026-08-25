@@ -134,6 +134,22 @@ function defaultSize(type: ProductType): string {
   return "A4";
 }
 
+// Your usual pricing — prefilled but always editable. Combos with no established
+// price (invites vary by personalisation; unframed/laminated sets aren't priced yet)
+// are left blank for manual entry.
+function suggestedPrice(type: ProductType, f: Finish): string {
+  if (type === "card") return "3.59";
+  if (type === "invite") return "";
+  if (type === "print") {
+    if (f === "framed") return "12.99";
+    if (f === "unframed") return "6.99";
+    if (f === "laminated") return "5.49";
+  }
+  if (type === "set2" && f === "framed") return "13.99";
+  if (type === "set3" && f === "framed") return "15.99";
+  return "";
+}
+
 export default function CreateProductPage() {
   const fileInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -149,6 +165,7 @@ export default function CreateProductPage() {
   const [productType, setProductType] = useState<ProductType>("card");
   const [size, setSize] = useState("A5");
   const [finish, setFinish] = useState<Finish>("framed");
+  const [price, setPrice] = useState(suggestedPrice("card", "framed"));
   const [theme, setTheme] = useState("default");
   const [room, setRoom] = useState("default");
   const [extraNotes, setExtraNotes] = useState("");
@@ -220,10 +237,16 @@ export default function CreateProductPage() {
     setProductType(type);
     setSize(defaultSize(type));
     setFinish("framed");
+    setPrice(suggestedPrice(type, "framed"));
     const count = designCount(type);
     setImageFiles(Array(count).fill(null));
     setImagePreviews(Array(count).fill(null));
     setLandscapeFlags(Array(5).fill(type === "invite"));
+  }
+
+  function handleFinishChange(f: Finish) {
+    setFinish(f);
+    setPrice(suggestedPrice(productType, f));
   }
 
   async function fileToBase64(file: File): Promise<{ base64: string; mimeType: string }> {
@@ -414,7 +437,7 @@ export default function CreateProductPage() {
       const res = await fetch("/api/create-product/shopify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ copy, productType }),
+        body: JSON.stringify({ copy, productType, price }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to create Shopify product");
@@ -551,7 +574,7 @@ export default function CreateProductPage() {
                 <select
                   className="pp-select"
                   value={finish}
-                  onChange={(e) => setFinish(e.target.value as Finish)}
+                  onChange={(e) => handleFinishChange(e.target.value as Finish)}
                 >
                   {FINISH_TYPES.map((f) => (
                     <option key={f.value} value={f.value}>{f.label}</option>
@@ -559,6 +582,26 @@ export default function CreateProductPage() {
                 </select>
               </div>
             )}
+
+            {/* Price */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Price (£)
+              </label>
+              <input
+                type="text"
+                inputMode="decimal"
+                className="pp-input"
+                placeholder="e.g. 12.99"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                Prefilled from your usual pricing — edit if this one&rsquo;s different. Leave
+                blank to set it manually in Shopify (e.g. invites, or combos you don&rsquo;t
+                price this way yet).
+              </p>
+            </div>
 
             {/* Which images */}
             {mode !== "copy" && (
