@@ -6,7 +6,7 @@ export const maxDuration = 30;
 
 export async function POST(req: NextRequest) {
   try {
-    const { productName, productType, size, theme, room, extraNotes } =
+    const { productName, productType, size, theme, room, extraNotes, finish } =
       await req.json();
 
     if (!productName || !productType) {
@@ -36,7 +36,8 @@ export async function POST(req: NextRequest) {
       size,
       theme,
       room,
-      extraNotes
+      extraNotes,
+      finish
     );
 
     const result = await model.generateContent(prompt);

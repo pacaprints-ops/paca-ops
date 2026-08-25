@@ -1,25 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI, Modality } from "@google/genai";
-import { buildImagePrompt } from "@/app/lib/productRules";
+import { buildImagePrompt, getRecipeDesignIndexes, ProductType } from "@/app/lib/productRules";
 
 export const maxDuration = 60;
+
+type ReferenceImage = { base64: string; mimeType: string };
 
 export async function POST(req: NextRequest) {
   try {
     const {
-      imageBase64,
-      imageMimeType,
+      referenceImages,
       productType,
       size,
       theme,
       room,
       extraNotes,
       recipeIndex,
+      landscape,
+      finish,
     } = await req.json();
 
-    if (!imageBase64 || !productType) {
+    if (!referenceImages?.length || !productType) {
       return NextResponse.json(
-        { error: "imageBase64 and productType are required" },
+        { error: "referenceImages and productType are required" },
         { status: 400 }
       );
     }
@@ -35,25 +38,31 @@ export async function POST(req: NextRequest) {
     const ai = new GoogleGenAI({ apiKey });
 
     const prompt = buildImagePrompt(
-      productType,
+      productType as ProductType,
       size,
       theme,
       room,
       recipeIndex ?? 0,
-      extraNotes
+      extraNotes,
+      Boolean(landscape),
+      finish
     );
+
+    const designIndexes = getRecipeDesignIndexes(productType as ProductType, recipeIndex ?? 0);
+    const imagesForThisShot: ReferenceImage[] =
+      designIndexes === "all" ? referenceImages : [referenceImages[designIndexes]];
 
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash-image",
       contents: [
         {
           parts: [
-            {
+            ...imagesForThisShot.map((img) => ({
               inlineData: {
-                mimeType: imageMimeType ?? "image/png",
-                data: imageBase64,
+                mimeType: img.mimeType ?? "image/png",
+                data: img.base64,
               },
-            },
+            })),
             { text: prompt },
           ],
         },

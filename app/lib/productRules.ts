@@ -1,5 +1,10 @@
 // Product image and copy prompt builders for Create Product tool
 
+export type ProductType = "card" | "print" | "set2" | "set3" | "invite";
+
+// Finish only applies to the print-family types (print, set2, set3) — cards/invites are always flat/folded, never framed.
+export type Finish = "framed" | "unframed" | "laminated";
+
 export const THEMES: Record<string, string> = {
   default: "Clean, modern, minimal, soft studio aesthetic. Neutral whites/creams with subtle teal accents. No seasonal props.",
   birthday: "Celebratory, fun, bright-but-not-neon. Allowed props: subtle confetti, small candle hint, gift ribbon. No giant balloons, messy clutter, or alcohol.",
@@ -36,12 +41,48 @@ const CARD_RECIPES = [
 ];
 
 const PRINT_RECIPES = [
-  "RECIPE 1 — Hero Wall Shot: Print framed and hanging on wall in the selected room. Minimal surrounding decor.",
-  "RECIPE 2 — Close Detail Shot: Print framed, slightly angled. Focus on artwork clarity and design legibility.",
-  "RECIPE 3 — Desk / Shelf Styling: Print resting on desk or shelf with minimal props.",
-  "RECIPE 4 — Lifestyle Wide Scene: Print visible within a wider room scene. Room context clear.",
+  "RECIPE 1 — Hero Wall Shot: Print displayed on the wall in the selected room, presented per the Finish rule below. Minimal surrounding decor.",
+  "RECIPE 2 — Close Detail Shot: Print displayed, slightly angled, presented per the Finish rule below. Focus on artwork clarity and design legibility.",
+  "RECIPE 3 — Desk / Shelf Styling: Print resting on desk or shelf with minimal props, presented per the Finish rule below.",
+  "RECIPE 4 — Lifestyle Wide Scene: Print visible within a wider room scene, presented per the Finish rule below. Room context clear.",
   "RECIPE 5 — Packaging / Flatlay: Print flat with packaging materials. Clean flatlay composition.",
 ];
+
+// Set recipes: group scenes show every uploaded design together, individual scenes show one design only.
+const SET3_RECIPES = [
+  "RECIPE 1 — Gallery Wall Grouping (all 3): All three reference designs displayed together on a wall in the selected room, presented per the Finish rule below, arranged as a matching gallery set (evenly spaced row or gentle asymmetric cluster). Each design's artwork reproduced exactly as supplied — never merged, resized inconsistently, or altered.",
+  "RECIPE 2 — Styled Grouping (all 3): All three reference designs displayed together in a styled scene — leaning together on a shelf, console, or floor with even, complementary spacing, presented per the Finish rule below. Each design reproduced exactly as supplied.",
+  "RECIPE 3 — Individual Hero Shot (Design 1): Only the first reference design shown, displayed front-facing on a clean surface, presented per the Finish rule below and matching the group shots' style. No other design from the set in shot.",
+  "RECIPE 4 — Individual Hero Shot (Design 2): Only the second reference design shown, displayed front-facing, presented per the Finish rule below and matching the group shots' style. No other design from the set in shot.",
+  "RECIPE 5 — Individual Hero Shot (Design 3): Only the third reference design shown, displayed front-facing, presented per the Finish rule below and matching the group shots' style. No other design from the set in shot.",
+];
+
+const SET2_RECIPES = [
+  "RECIPE 1 — Gallery Wall Pair: Both reference designs displayed together on a wall, evenly spaced as a matching pair, presented per the Finish rule below. Each design's artwork reproduced exactly as supplied — never merged, resized inconsistently, or altered.",
+  "RECIPE 2 — Styled Grouping (pair): Both reference designs displayed together in a styled scene — leaning together on a shelf or console, presented per the Finish rule below. Each design reproduced exactly as supplied.",
+  "RECIPE 3 — Flatlay Pair: Both reference designs laid flat together, side by side, clean flatlay composition.",
+  "RECIPE 4 — Individual Hero Shot (Design 1): Only the first reference design shown, displayed front-facing on a clean surface, presented per the Finish rule below and matching the group shots' style. No other design from the set in shot.",
+  "RECIPE 5 — Individual Hero Shot (Design 2): Only the second reference design shown, displayed front-facing, presented per the Finish rule below and matching the group shots' style. No other design from the set in shot.",
+];
+
+const INVITE_RECIPES = [
+  "RECIPE 1 — Hero Flat Shot: Single invite front-facing and fully flat on a clean surface. No fold, no envelope. Apply theme and room/event styling subtly.",
+  "RECIPE 2 — Lifestyle Scene: Invite placed flat within the selected event setting (e.g. party table, desk). Theme props lightly included.",
+  "RECIPE 3 — Flatlay with Envelope: Invite flat on a surface with a plain unbranded envelope beside it. Theme props allowed. Minimal, clean layout.",
+  "RECIPE 4 — Hand-held Shot: Invite held flat and naturally by a neutral hand. Background blurred using room tones. Theme mood applied.",
+  "RECIPE 5 — Stack / Desk Scene: A small neat stack of the invite positioned near desk or packaging styling. Theme cues allowed. Premium ecommerce feel.",
+];
+
+// Per-recipe-index map of which uploaded design(s) a set recipe needs — "all" sends every
+// uploaded reference image to Gemini (group shots), a number sends just that one design (individual shots).
+const SET2_RECIPE_DESIGNS: ("all" | number)[] = ["all", "all", "all", 0, 1];
+const SET3_RECIPE_DESIGNS: ("all" | number)[] = ["all", "all", 0, 1, 2];
+
+export function getRecipeDesignIndexes(productType: ProductType, recipeIndex: number): "all" | number {
+  if (productType === "set2") return SET2_RECIPE_DESIGNS[recipeIndex] ?? "all";
+  if (productType === "set3") return SET3_RECIPE_DESIGNS[recipeIndex] ?? "all";
+  return "all";
+}
 
 const BRAND_RULES = `
 BRAND RULES (never break):
@@ -71,23 +112,113 @@ CARD RULES — THESE ARE ABSOLUTE AND CANNOT BE BROKEN:
 - Show the full front face — no cropping of any edge
 `.trim();
 
-const HARD_PRINT_RULES = `
+const PRINT_RULES_BASE = `
 PRINT RULES:
-- The print design shown in the reference image must be reproduced exactly as a framed print
+- The print design shown in the reference image must be reproduced exactly as supplied
 - Never alter the artwork, text, colours, fonts, or layout
-- Frame must be neutral, modern, and thin
 - Print must be fully visible and legible
 - No reflections blocking the design
 - No hands unless the recipe specifically requires it
 `.trim();
 
+const FINISH_RULES: Record<Finish, string> = {
+  framed: `
+FINISH — Framed:
+- The print is inside a neutral, modern, thin frame
+- Frame colour should complement the room styling (light wood, black, or white)
+`.trim(),
+  unframed: `
+FINISH — Unframed:
+- The print has NO frame, mount, or border — never add one
+- Show the raw print edges
+- Display it pinned to a corkboard, taped up, clipped on a string with a wooden peg, or simply propped/leaning against a wall, shelf, or stand — never inside a frame
+`.trim(),
+  laminated: `
+FINISH — Laminated:
+- The print has NO frame, mount, or border — never add one
+- It has a laminated finish: a thin glossy or matte plastic coating, visible as a subtle sheen and slightly rounded/sealed edge
+- Display it pinned, taped, propped, or on a stand — never inside a frame
+`.trim(),
+};
+
+const HARD_INVITE_RULES = `
+INVITE RULES — THESE ARE ABSOLUTE AND CANNOT BE BROKEN:
+- The invite design shown in the reference image must be reproduced exactly as a physical flat card
+- Never alter the artwork, text, colours, fonts, layout, or alignment
+- The invite is a single flat panel — it does NOT fold and has no spine
+- Show the full flat face of the invite, fully visible — no cropping of any edge
+- Never show it standing open like a greeting card or folded in any way
+- An envelope, if shown, is a plain unbranded envelope placed beside the invite — never sealed around it or obscuring the design
+`.trim();
+
+const HARD_SET_RULES = `
+SET RULES — THESE ARE ABSOLUTE AND CANNOT BE BROKEN:
+- Each reference image shows one distinct design belonging to the same matching set
+- Reproduce every design's artwork exactly as supplied — never alter, merge, or redraw any of them
+- Keep framing, size, and style consistent across every image in the set
+- In group scenes, arrange the supplied designs together as described — do not invent extra designs or duplicate one design to fill space
+- In individual scenes, show only the one specified design — no other designs from the set should appear
+`.trim();
+
+function getRecipes(productType: ProductType): string[] {
+  switch (productType) {
+    case "card":
+      return CARD_RECIPES;
+    case "set2":
+      return SET2_RECIPES;
+    case "set3":
+      return SET3_RECIPES;
+    case "invite":
+      return INVITE_RECIPES;
+    case "print":
+    default:
+      return PRINT_RECIPES;
+  }
+}
+
+function getProductRulesText(productType: ProductType, finish: Finish): string {
+  switch (productType) {
+    case "card":
+      return HARD_CARD_RULES;
+    case "invite":
+      return HARD_INVITE_RULES;
+    case "set2":
+    case "set3":
+      return `${PRINT_RULES_BASE}\n\n${FINISH_RULES[finish]}\n\n${HARD_SET_RULES}`;
+    case "print":
+    default:
+      return `${PRINT_RULES_BASE}\n\n${FINISH_RULES[finish]}`;
+  }
+}
+
+const SIZE_ASPECTS: Record<string, string> = {
+  A6: "portrait rectangle — taller than wide, aspect ratio 1:1.41. NEVER square, NEVER landscape.",
+  A5: "portrait rectangle — taller than wide, aspect ratio 1:1.41. NEVER square, NEVER landscape.",
+  A4: "portrait rectangle — taller than wide, aspect ratio 1:1.41. NEVER square, NEVER landscape.",
+  A3: "portrait rectangle — taller than wide, aspect ratio 1:1.41. NEVER square, NEVER landscape.",
+  A2: "portrait rectangle — taller than wide, aspect ratio 1:1.41. NEVER square, NEVER landscape.",
+  Square: "perfect square — equal width and height, aspect ratio 1:1. NEVER portrait, NEVER landscape.",
+};
+
+const LANDSCAPE_ASPECTS: Record<string, string> = {
+  A6: "landscape rectangle — wider than tall, aspect ratio 1.41:1. NEVER portrait, NEVER square.",
+  A5: "landscape rectangle — wider than tall, aspect ratio 1.41:1. NEVER portrait, NEVER square.",
+  A4: "landscape rectangle — wider than tall, aspect ratio 1.41:1. NEVER portrait, NEVER square.",
+  A3: "landscape rectangle — wider than tall, aspect ratio 1.41:1. NEVER portrait, NEVER square.",
+  A2: "landscape rectangle — wider than tall, aspect ratio 1.41:1. NEVER portrait, NEVER square.",
+  // A square has no orientation — the Landscape tick has no visual effect when Size is Square.
+  Square: "perfect square — equal width and height, aspect ratio 1:1.",
+};
+
 export function buildImagePrompt(
-  productType: "card" | "print",
+  productType: ProductType,
   size: string,
   theme: string,
   room: string,
   recipeIndex: number,
-  extraNotes: string
+  extraNotes: string,
+  landscape: boolean = false,
+  finish: Finish = "framed"
 ): string {
   const themeKey = theme.toLowerCase().replace(/\s+/g, "_");
   const roomKey = room.toLowerCase().replace(/\s+/g, "_");
@@ -95,30 +226,34 @@ export function buildImagePrompt(
   const themeRules = THEMES[themeKey] ?? THEMES.default;
   const roomRules = ROOMS[roomKey] ?? ROOMS.default;
 
-  const recipes = productType === "card" ? CARD_RECIPES : PRINT_RECIPES;
+  const recipes = getRecipes(productType);
   const recipe = recipes[recipeIndex] ?? recipes[0];
-  const productRules = productType === "card" ? HARD_CARD_RULES : HARD_PRINT_RULES;
+  const productRules = getProductRulesText(productType, finish);
 
-  const SIZE_ASPECTS: Record<string, string> = {
-    A6: "portrait rectangle — taller than wide, aspect ratio 1:1.41. NEVER square, NEVER landscape.",
-    A5: "portrait rectangle — taller than wide, aspect ratio 1:1.41. NEVER square, NEVER landscape.",
-    A4: "portrait rectangle — taller than wide, aspect ratio 1:1.41. NEVER square, NEVER landscape.",
-    A3: "portrait rectangle — taller than wide, aspect ratio 1:1.41. NEVER square, NEVER landscape.",
-    A2: "portrait rectangle — taller than wide, aspect ratio 1:1.41. NEVER square, NEVER landscape.",
-    Square: "perfect square — equal width and height, aspect ratio 1:1. NEVER portrait, NEVER landscape.",
-  };
+  const aspects = landscape ? LANDSCAPE_ASPECTS : SIZE_ASPECTS;
+  const fallbackAspect = landscape
+    ? "landscape rectangle — wider than tall"
+    : "portrait rectangle — taller than wide";
   const sizeNote = size
-    ? `PRODUCT SIZE (mandatory — do not deviate): ${size} — the physical product must be rendered as a ${SIZE_ASPECTS[size] ?? "portrait rectangle"}. Every image in the set must show the same consistent size and shape.`
+    ? `PRODUCT SIZE (mandatory — do not deviate): ${size} — the physical product must be rendered as a ${aspects[size] ?? fallbackAspect}. Every image in the set must show the same consistent size and shape.`
     : "";
 
   const extraNote = extraNotes?.trim()
     ? `Additional styling notes (treat as refinement, never break brand rules): ${extraNotes}`
     : "";
 
-  return `
-Create a photorealistic lifestyle product mockup image at 600x600 pixels.
+  const outputSpec = landscape
+    ? "Create a photorealistic lifestyle product mockup image, landscape orientation (approximately 800x600 pixels, wider than tall)."
+    : "Create a photorealistic lifestyle product mockup image at 600x600 pixels.";
 
-The reference image attached shows the artwork for a ${productType}. Use it to render the product accurately in the scene below.
+  const outputLine = landscape
+    ? "Output: one photorealistic image only, landscape orientation (wider than tall). No text overlays. No watermarks."
+    : "Output: one photorealistic 600x600 image only. No text overlays. No watermarks.";
+
+  return `
+${outputSpec}
+
+The reference image(s) attached show the artwork for a ${productType === "set2" || productType === "set3" ? "set of matching prints" : productType}. Use them to render the product accurately in the scene below.
 
 MANDATORY PRODUCT RULES — READ FIRST, NEVER BREAK:
 ${productRules}
@@ -138,11 +273,17 @@ ${BRAND_RULES}
 
 ${extraNote}
 
-Output: one photorealistic 600x600 image only. No text overlays. No watermarks.
+${outputLine}
 `.trim();
 }
 
-function buildProductDetails(productType: "card" | "print", size: string): string {
+const FINISH_DETAIL_LINES: Record<Finish, string> = {
+  framed: "• Comes ready-framed in a neutral, modern thin frame",
+  unframed: "• Unframed — ready to frame yourselves or display your own way",
+  laminated: "• Laminated finish — durable and wipe-clean, ready to use straight away",
+};
+
+function buildProductDetails(productType: ProductType, size: string, finish: Finish = "framed"): string {
   if (productType === "card") {
     return [
       "Details:",
@@ -152,27 +293,66 @@ function buildProductDetails(productType: "card" | "print", size: string): strin
       "• Blank inside — ready for your personal message",
       "• Printed and shipped from the UK",
     ].join("\n");
-  } else {
+  }
+  if (productType === "invite") {
     return [
       "Details:",
-      `• Size: ${size || "A4"}`,
-      "• High-quality fine art print on premium paper",
-      "• Available as print only or framed",
+      `• Size: ${size || "A6"}`,
+      "• Printed on premium quality card stock",
+      "• Blank or personalised exactly as ordered",
+      "• Sold as invites only — envelopes not included unless stated",
+      "• Printed and shipped from the UK",
+    ].join("\n");
+  }
+  if (productType === "set2" || productType === "set3") {
+    const count = productType === "set2" ? "2" : "3";
+    return [
+      "Details:",
+      `• Sold as a matching set of ${count} prints`,
+      `• Size: ${size || "A4"} each`,
+      "• High-quality fine art prints on premium paper",
+      FINISH_DETAIL_LINES[finish],
       "• Colours are vibrant and fade-resistant",
       "• Printed and shipped from the UK",
     ].join("\n");
   }
+  return [
+    "Details:",
+    `• Size: ${size || "A4"}`,
+    "• High-quality fine art print on premium paper",
+    FINISH_DETAIL_LINES[finish],
+    "• Colours are vibrant and fade-resistant",
+    "• Printed and shipped from the UK",
+  ].join("\n");
 }
+
+const PRODUCT_TYPE_LABELS: Record<ProductType, string> = {
+  card: "card",
+  print: "print",
+  set2: "set of 2 prints",
+  set3: "set of 3 prints",
+  invite: "invite",
+};
 
 export function buildCopyPrompt(
   productName: string,
-  productType: "card" | "print",
+  productType: ProductType,
   size: string,
   theme: string,
   room: string,
-  extraNotes: string
+  extraNotes: string,
+  finish: Finish = "framed"
 ): string {
-  const details = buildProductDetails(productType, size);
+  const details = buildProductDetails(productType, size, finish);
+  const typeLabel = PRODUCT_TYPE_LABELS[productType] ?? productType;
+  const isPrintFamily = productType === "print" || productType === "set2" || productType === "set3";
+  const finishLabel = isPrintFamily
+    ? finish === "framed"
+      ? "framed"
+      : finish === "laminated"
+      ? "laminated (unframed), great for chore charts, checklists, or anywhere it needs to be wipeable"
+      : "unframed"
+    : "";
 
   return `
 You write product descriptions for PacaPrints, a small UK card and print shop. The tone is warm, friendly, and a little witty — like a mate who knows their stuff giving you a genuine recommendation. You want the reader to smile, feel something, and actually want to buy it. Write with personality. Make it feel real.
@@ -182,7 +362,8 @@ Banned phrases (never use these — they kill the vibe instantly):
 
 Product:
 - Name/title hint: ${productName}
-- Type: ${productType}${size ? ` (${size})` : ""}
+- Type: ${typeLabel}${size ? ` (${size})` : ""}
+${finishLabel ? `- Finish: ${finishLabel}` : ""}
 - Occasion/theme: ${theme || "general"}
 ${extraNotes ? `- Extra notes: ${extraNotes}` : ""}
 

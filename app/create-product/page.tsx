@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { ProductType, Finish } from "@/app/lib/productRules";
 
 const RESULTS_KEY = "create-product-results";
 
@@ -46,6 +47,25 @@ const ROOMS = [
 const CARD_SIZES = ["A6", "A5", "Square", "A4"];
 const PRINT_SIZES = ["A4", "A3", "A2"];
 
+const PRODUCT_TYPES: { value: ProductType; label: string }[] = [
+  { value: "card", label: "Card" },
+  { value: "print", label: "Print" },
+  { value: "set2", label: "Set of 2 Prints" },
+  { value: "set3", label: "Set of 3 Prints" },
+  { value: "invite", label: "Invite" },
+];
+
+// Finish only applies to the print-family types — cards/invites are never framed/laminated.
+const FINISH_TYPES: { value: Finish; label: string }[] = [
+  { value: "framed", label: "Framed" },
+  { value: "unframed", label: "Unframed" },
+  { value: "laminated", label: "Laminated" },
+];
+
+function showsFinish(type: ProductType): boolean {
+  return type === "print" || type === "set2" || type === "set3";
+}
+
 type Mode = "all" | "copy" | "images";
 
 const MODES: { value: Mode; label: string; hint: string }[] = [
@@ -70,22 +90,70 @@ const PRINT_RECIPE_LABELS = [
   "Packaging flatlay",
 ];
 
+const SET3_RECIPE_LABELS = [
+  "Gallery wall (all 3)",
+  "Styled grouping (all 3)",
+  "Individual — Design 1",
+  "Individual — Design 2",
+  "Individual — Design 3",
+];
+
+const SET2_RECIPE_LABELS = [
+  "Gallery wall (pair)",
+  "Styled grouping (pair)",
+  "Flatlay (pair)",
+  "Individual — Design 1",
+  "Individual — Design 2",
+];
+
+const INVITE_RECIPE_LABELS = [
+  "Hero flat shot",
+  "Lifestyle scene",
+  "Flatlay with envelope",
+  "Hand-held shot",
+  "Stack / desk scene",
+];
+
+const RECIPE_LABELS_BY_TYPE: Record<ProductType, string[]> = {
+  card: RECIPE_LABELS,
+  print: PRINT_RECIPE_LABELS,
+  set2: SET2_RECIPE_LABELS,
+  set3: SET3_RECIPE_LABELS,
+  invite: INVITE_RECIPE_LABELS,
+};
+
+function designCount(type: ProductType): number {
+  if (type === "set2") return 2;
+  if (type === "set3") return 3;
+  return 1;
+}
+
+function defaultSize(type: ProductType): string {
+  if (type === "card") return "A5";
+  if (type === "invite") return "A6";
+  return "A4";
+}
+
 export default function CreateProductPage() {
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const [mode, setMode] = useState<Mode>("all");
   const [selectedRecipes, setSelectedRecipes] = useState<boolean[]>([
     true, true, true, true, true,
   ]);
+  const [landscapeFlags, setLandscapeFlags] = useState<boolean[]>([
+    false, false, false, false, false,
+  ]);
 
   const [productName, setProductName] = useState("");
-  const [productType, setProductType] = useState<"card" | "print">("card");
+  const [productType, setProductType] = useState<ProductType>("card");
   const [size, setSize] = useState("A5");
+  const [finish, setFinish] = useState<Finish>("framed");
   const [theme, setTheme] = useState("default");
   const [room, setRoom] = useState("default");
   const [extraNotes, setExtraNotes] = useState("");
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageFiles, setImageFiles] = useState<(File | null)[]>([null]);
+  const [imagePreviews, setImagePreviews] = useState<(string | null)[]>([null]);
 
   const [status, setStatus] = useState<string>("");
   const [running, setRunning] = useState(false);
@@ -125,22 +193,37 @@ export default function CreateProductPage() {
     } catch {}
   }, [copy, images, productName]);
 
-  const sizes = productType === "card" ? CARD_SIZES : PRINT_SIZES;
-  const recipeLabels =
-    productType === "card" ? RECIPE_LABELS : PRINT_RECIPE_LABELS;
+  const sizes = productType === "card" || productType === "invite" ? CARD_SIZES : PRINT_SIZES;
+  const recipeLabels = RECIPE_LABELS_BY_TYPE[productType];
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleFileChange(index: number, e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    setImageFile(file);
+    setImageFiles((prev) => {
+      const next = [...prev];
+      next[index] = file;
+      return next;
+    });
     const reader = new FileReader();
-    reader.onload = (ev) => setImagePreview(ev.target?.result as string);
+    reader.onload = (ev) => {
+      const result = ev.target?.result as string;
+      setImagePreviews((prev) => {
+        const next = [...prev];
+        next[index] = result;
+        return next;
+      });
+    };
     reader.readAsDataURL(file);
   }
 
-  function handleProductTypeChange(type: "card" | "print") {
+  function handleProductTypeChange(type: ProductType) {
     setProductType(type);
-    setSize(type === "card" ? "A5" : "A4");
+    setSize(defaultSize(type));
+    setFinish("framed");
+    const count = designCount(type);
+    setImageFiles(Array(count).fill(null));
+    setImagePreviews(Array(count).fill(null));
+    setLandscapeFlags(Array(5).fill(type === "invite"));
   }
 
   async function fileToBase64(file: File): Promise<{ base64: string; mimeType: string }> {
@@ -169,8 +252,12 @@ export default function CreateProductPage() {
       alert("Please enter a product name.");
       return;
     }
-    if (wantsImages && !imageFile) {
-      alert("Please upload the product front image.");
+    if (wantsImages && imageFiles.some((f) => !f)) {
+      alert(
+        imageFiles.length > 1
+          ? `Please upload all ${imageFiles.length} design images.`
+          : "Please upload the product front image."
+      );
       return;
     }
     if (wantsImages && recipeIndexes.length === 0) {
@@ -200,7 +287,7 @@ export default function CreateProductPage() {
         const res = await fetch("/api/create-product/copy", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ productName, productType, size, theme, room, extraNotes }),
+          body: JSON.stringify({ productName, productType, size, theme, room, extraNotes, finish }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? "Failed to generate copy");
@@ -211,8 +298,10 @@ export default function CreateProductPage() {
     }
 
     // Step 2: Generate the selected images one by one
-    if (wantsImages && imageFile) {
-      const { base64, mimeType } = await fileToBase64(imageFile);
+    if (wantsImages && imageFiles.every((f) => f)) {
+      const referenceImages = await Promise.all(
+        imageFiles.map((f) => fileToBase64(f as File))
+      );
 
       for (let n = 0; n < recipeIndexes.length; n++) {
         const i = recipeIndexes[n];
@@ -224,14 +313,15 @@ export default function CreateProductPage() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              imageBase64: base64,
-              imageMimeType: mimeType,
+              referenceImages,
               productType,
               size,
               theme,
               room,
               extraNotes,
               recipeIndex: i,
+              landscape: landscapeFlags[i],
+              finish,
             }),
           });
           const data = await res.json();
@@ -258,6 +348,10 @@ export default function CreateProductPage() {
 
   function toggleRecipe(i: number) {
     setSelectedRecipes((prev) => prev.map((on, idx) => (idx === i ? !on : on)));
+  }
+
+  function toggleLandscape(i: number) {
+    setLandscapeFlags((prev) => prev.map((on, idx) => (idx === i ? !on : on)));
   }
 
   // Accepts a raw ID or a pasted Shopify admin URL (…/products/1234567890)
@@ -381,7 +475,7 @@ export default function CreateProductPage() {
       <div className="pp-card p-5">
         <h1 className="text-2xl font-extrabold text-slate-900">Create Product</h1>
         <p className="mt-1 text-sm text-slate-600">
-          Upload your Canva design, fill in the details, and generate 5 lifestyle images + Shopify copy.
+          Upload your Canva design(s), fill in the details, and generate 5 lifestyle images + Shopify copy.
         </p>
       </div>
 
@@ -416,6 +510,56 @@ export default function CreateProductPage() {
               </p>
             </div>
 
+            {/* Product type */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Product type *
+              </label>
+              <select
+                className="pp-select"
+                value={productType}
+                onChange={(e) => handleProductTypeChange(e.target.value as ProductType)}
+              >
+                {PRODUCT_TYPES.map((t) => (
+                  <option key={t.value} value={t.value}>{t.label}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Size */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Size
+              </label>
+              <select
+                className="pp-select"
+                value={size}
+                onChange={(e) => setSize(e.target.value)}
+              >
+                {sizes.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Finish (print-family types only) */}
+            {showsFinish(productType) && (
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Finish
+                </label>
+                <select
+                  className="pp-select"
+                  value={finish}
+                  onChange={(e) => setFinish(e.target.value as Finish)}
+                >
+                  {FINISH_TYPES.map((f) => (
+                    <option key={f.value} value={f.value}>{f.label}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             {/* Which images */}
             {mode !== "copy" && (
               <div>
@@ -439,50 +583,71 @@ export default function CreateProductPage() {
                 </div>
                 <div className="space-y-1">
                   {recipeLabels.map((label, i) => (
-                    <label
+                    <div
                       key={i}
-                      className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer"
+                      className="flex items-center justify-between gap-2"
                     >
-                      <input
-                        type="checkbox"
-                        checked={selectedRecipes[i]}
-                        onChange={() => toggleRecipe(i)}
-                        className="rounded border-slate-300"
-                      />
-                      {i + 1}. {label}
-                    </label>
+                      <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer min-w-0 flex-1">
+                        <input
+                          type="checkbox"
+                          checked={selectedRecipes[i]}
+                          onChange={() => toggleRecipe(i)}
+                          className="rounded border-slate-300 shrink-0"
+                        />
+                        <span className="truncate">{i + 1}. {label}</span>
+                      </label>
+                      <label className="flex items-center gap-1 text-xs text-slate-500 cursor-pointer shrink-0">
+                        <input
+                          type="checkbox"
+                          checked={landscapeFlags[i]}
+                          onChange={() => toggleLandscape(i)}
+                          className="rounded border-slate-300"
+                        />
+                        Landscape
+                      </label>
+                    </div>
                   ))}
                 </div>
               </div>
             )}
 
-            {/* Image upload */}
-            <div className={mode === "copy" ? "hidden" : ""}>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Front image (from Canva) *
-              </label>
-              <div
-                className="border-2 border-dashed border-slate-200 rounded-xl p-4 text-center cursor-pointer hover:border-slate-400 transition"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                {imagePreview ? (
-                  <img
-                    src={imagePreview}
-                    alt="Preview"
-                    className="mx-auto max-h-40 object-contain rounded"
-                  />
-                ) : (
-                  <p className="text-sm text-slate-500">Click to upload PNG or JPG</p>
-                )}
+            {/* Image upload(s) */}
+            {mode !== "copy" && (
+              <div className="space-y-3">
+                {imageFiles.map((_, i) => (
+                  <div key={i}>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      {imageFiles.length > 1
+                        ? `Design ${i + 1} image *`
+                        : "Front image (from Canva) *"}
+                    </label>
+                    <div
+                      className="border-2 border-dashed border-slate-200 rounded-xl p-4 text-center cursor-pointer hover:border-slate-400 transition"
+                      onClick={() => fileInputRefs.current[i]?.click()}
+                    >
+                      {imagePreviews[i] ? (
+                        <img
+                          src={imagePreviews[i] as string}
+                          alt={`Design ${i + 1} preview`}
+                          className="mx-auto max-h-40 object-contain rounded"
+                        />
+                      ) : (
+                        <p className="text-sm text-slate-500">Click to upload PNG or JPG</p>
+                      )}
+                    </div>
+                    <input
+                      ref={(el) => {
+                        fileInputRefs.current[i] = el;
+                      }}
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      className="hidden"
+                      onChange={(e) => handleFileChange(i, e)}
+                    />
+                  </div>
+                ))}
               </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                className="hidden"
-                onChange={handleFileChange}
-              />
-            </div>
+            )}
 
             {/* Product name */}
             <div>
@@ -496,46 +661,6 @@ export default function CreateProductPage() {
                 value={productName}
                 onChange={(e) => setProductName(e.target.value)}
               />
-            </div>
-
-            {/* Product type */}
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Product type *
-              </label>
-              <div className="flex gap-2">
-                {(["card", "print"] as const).map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => handleProductTypeChange(t)}
-                    className={[
-                      "flex-1 rounded-xl px-4 py-2 text-sm font-semibold border transition",
-                      productType === t
-                        ? "bg-slate-900 text-white border-slate-900"
-                        : "bg-white text-slate-700 border-slate-200 hover:border-slate-400",
-                    ].join(" ")}
-                  >
-                    {t.charAt(0).toUpperCase() + t.slice(1)}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Size */}
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Size
-              </label>
-              <select
-                className="pp-select"
-                value={size}
-                onChange={(e) => setSize(e.target.value)}
-              >
-                {sizes.map((s) => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
             </div>
 
             {/* Theme */}

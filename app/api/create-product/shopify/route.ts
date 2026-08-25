@@ -26,11 +26,19 @@ export async function POST(req: NextRequest) {
     .map((l: string) => `<p>${l.trim()}</p>`)
     .join("");
 
+  const PRODUCT_TYPE_LABELS: Record<string, string> = {
+    card: "Card",
+    print: "Print",
+    set2: "Set of 2 Prints",
+    set3: "Set of 3 Prints",
+    invite: "Invitation",
+  };
+
   const product = {
     title: copy.title,
     body_html: bodyHtml,
     vendor: "Paca Prints",
-    product_type: productType === "card" ? "Card" : "Print",
+    product_type: PRODUCT_TYPE_LABELS[productType] ?? "Print",
     status: "draft",
     metafields: [
       {
