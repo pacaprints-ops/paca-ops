@@ -41,10 +41,10 @@ const HERO_BACKGROUND =
 const HERO_FRAME_OVERRIDE =
   "If framed, the frame must always be plain black for this shot (never white, never wood). If unframed or laminated, present with no frame per the Finish rule below.";
 const HERO_ENVELOPE =
-  "A plain white envelope is propped directly upright behind it, peeking out visibly above and to one side, as if it is resting just in front of its own envelope.";
+  "It rests flat against the front of its plain white envelope, leaning back against it at a slight angle for support — the two are touching each other, not standing independently apart. The envelope is directly behind, peeking out visibly above and to one side.";
 
 const CARD_RECIPES = [
-  `RECIPE 1 — Hero Product Shot: ${HERO_BACKGROUND} Single card standing upright, front-facing, centered in frame. ${HERO_ENVELOPE}`,
+  `RECIPE 1 — Hero Product Shot: ${HERO_BACKGROUND} Single card front-facing, centered in frame. ${HERO_ENVELOPE}`,
   "RECIPE 2 — Lifestyle Scene: Card placed naturally in the selected room environment. Room styling visible but subtle. Theme props lightly included.",
   "RECIPE 3 — Flatlay with Envelope: Card flat on surface with envelope beside it. Theme props allowed. Minimal, clean layout.",
   "RECIPE 4 — Hand-held Shot: Card held naturally by a neutral hand. Background blurred using room tones. Theme mood applied.",
