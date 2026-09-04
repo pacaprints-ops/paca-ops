@@ -18,6 +18,8 @@ export const THEMES: Record<string, string> = {
   kids: "Playful, colourful, clean. Allowed props: simple generic toy shapes, playful textures, colour pops. No branded characters or clutter.",
   gaming: "Modern, neon-accented but controlled. Palette: dark neutrals + subtle neon accent glow. Allowed props: generic controller silhouette (no logos), RGB glow ambiance, unbranded desk setup.",
   wedding: "Elegant, romantic, luxury stationery feel. Palette: whites/creams + sage, blush, taupe. Allowed props: silk ribbon, wax seal (generic), delicate florals, linen textures.",
+  boys: "Playful, bold, clean boyish palette: navy, denim blue, forest green, grey + white. Allowed props: simple geometric shapes, generic star/rocket/dino motifs (no branded characters), subtle texture. No pink, no glitter.",
+  girls: "Playful, soft, clean girlie palette: blush pink, lilac, soft rose, cream + white. Allowed props: simple floral or heart motifs (generic), soft ribbon, subtle tasteful sparkle. No branded characters.",
 };
 
 export const ROOMS: Record<string, string> = {
@@ -32,8 +34,17 @@ export const ROOMS: Record<string, string> = {
   boys_bedroom: "Soft, bright, clean. Light wood/white desk or bedside. Palette hint: navy/teal/grey accents (subtle). Allowed props: minimal desk items, small plant.",
 };
 
+// Shared hero-shot background used for RECIPE 1 of every product type, so the first image
+// generated is always uniform across the whole catalogue regardless of theme/room chosen.
+const HERO_BACKGROUND =
+  "FIXED TEMPLATE for this shot only — always use exactly this, ignore the room styling and theme prop sections. Centered on a plain light grey/white seamless studio background — no room setting, no theme props, no decor of any kind. Soft, even, shadowless studio lighting. No hands. No clutter. No other objects in frame.";
+const HERO_FRAME_OVERRIDE =
+  "If framed, the frame must always be plain black for this shot (never white, never wood). If unframed or laminated, present with no frame per the Finish rule below.";
+const HERO_ENVELOPE =
+  "A plain white envelope is propped directly upright behind it, peeking out visibly above and to one side, as if it is resting just in front of its own envelope.";
+
 const CARD_RECIPES = [
-  "RECIPE 1 — Hero Product Shot: Single card front-facing on a clean surface. Apply theme and room styling subtly. No hands. No clutter.",
+  `RECIPE 1 — Hero Product Shot: ${HERO_BACKGROUND} Single card standing upright, front-facing, centered in frame. ${HERO_ENVELOPE}`,
   "RECIPE 2 — Lifestyle Scene: Card placed naturally in the selected room environment. Room styling visible but subtle. Theme props lightly included.",
   "RECIPE 3 — Flatlay with Envelope: Card flat on surface with envelope beside it. Theme props allowed. Minimal, clean layout.",
   "RECIPE 4 — Hand-held Shot: Card held naturally by a neutral hand. Background blurred using room tones. Theme mood applied.",
@@ -41,7 +52,7 @@ const CARD_RECIPES = [
 ];
 
 const PRINT_RECIPES = [
-  "RECIPE 1 — Hero Wall Shot: Print displayed on the wall in the selected room, presented per the Finish rule below. Minimal surrounding decor.",
+  `RECIPE 1 — Hero Product Shot: ${HERO_BACKGROUND} Single print centered in frame, presented per the Finish rule below. ${HERO_FRAME_OVERRIDE}`,
   "RECIPE 2 — Close Detail Shot: Print displayed, slightly angled, presented per the Finish rule below. Focus on artwork clarity and design legibility.",
   "RECIPE 3 — Desk / Shelf Styling: Print resting on desk or shelf with minimal props, presented per the Finish rule below.",
   "RECIPE 4 — Lifestyle Wide Scene: Print visible within a wider room scene, presented per the Finish rule below. Room context clear.",
@@ -50,7 +61,7 @@ const PRINT_RECIPES = [
 
 // Set recipes: group scenes show every uploaded design together, individual scenes show one design only.
 const SET3_RECIPES = [
-  "RECIPE 1 — Gallery Wall Grouping (all 3): All three reference designs displayed together on a wall in the selected room, presented per the Finish rule below, arranged as a matching gallery set (evenly spaced row or gentle asymmetric cluster). Each design's artwork reproduced exactly as supplied — never merged, resized inconsistently, or altered.",
+  `RECIPE 1 — Gallery Grouping (all 3): ${HERO_BACKGROUND} All three reference designs displayed together, evenly spaced as a matching gallery set (row or gentle asymmetric cluster), presented per the Finish rule below. ${HERO_FRAME_OVERRIDE} Each design's artwork reproduced exactly as supplied — never merged, resized inconsistently, or altered.`,
   "RECIPE 2 — Styled Grouping (all 3): All three reference designs displayed together in a styled scene — leaning together on a shelf, console, or floor with even, complementary spacing, presented per the Finish rule below. Each design reproduced exactly as supplied.",
   "RECIPE 3 — Individual Hero Shot (Design 1): Only the first reference design shown, displayed front-facing on a clean surface, presented per the Finish rule below and matching the group shots' style. No other design from the set in shot.",
   "RECIPE 4 — Individual Hero Shot (Design 2): Only the second reference design shown, displayed front-facing, presented per the Finish rule below and matching the group shots' style. No other design from the set in shot.",
@@ -58,7 +69,7 @@ const SET3_RECIPES = [
 ];
 
 const SET2_RECIPES = [
-  "RECIPE 1 — Gallery Wall Pair: Both reference designs displayed together on a wall, evenly spaced as a matching pair, presented per the Finish rule below. Each design's artwork reproduced exactly as supplied — never merged, resized inconsistently, or altered.",
+  `RECIPE 1 — Gallery Grouping (pair): ${HERO_BACKGROUND} Both reference designs displayed together, evenly spaced as a matching pair, presented per the Finish rule below. ${HERO_FRAME_OVERRIDE} Each design's artwork reproduced exactly as supplied — never merged, resized inconsistently, or altered.`,
   "RECIPE 2 — Styled Grouping (pair): Both reference designs displayed together in a styled scene — leaning together on a shelf or console, presented per the Finish rule below. Each design reproduced exactly as supplied.",
   "RECIPE 3 — Flatlay Pair: Both reference designs laid flat together, side by side, clean flatlay composition.",
   "RECIPE 4 — Individual Hero Shot (Design 1): Only the first reference design shown, displayed front-facing on a clean surface, presented per the Finish rule below and matching the group shots' style. No other design from the set in shot.",
@@ -66,7 +77,7 @@ const SET2_RECIPES = [
 ];
 
 const INVITE_RECIPES = [
-  "RECIPE 1 — Hero Flat Shot: Single invite front-facing and fully flat on a clean surface. No fold, no envelope. Apply theme and room/event styling subtly.",
+  `RECIPE 1 — Hero Flat Shot: ${HERO_BACKGROUND} Single invite shown fully flat and front-facing, propped upright leaning slightly, same treatment as the card hero shot. No fold. ${HERO_ENVELOPE}`,
   "RECIPE 2 — Lifestyle Scene: Invite placed flat within the selected event setting (e.g. party table, desk). Theme props lightly included.",
   "RECIPE 3 — Flatlay with Envelope: Invite flat on a surface with a plain unbranded envelope beside it. Theme props allowed. Minimal, clean layout.",
   "RECIPE 4 — Hand-held Shot: Invite held flat and naturally by a neutral hand. Background blurred using room tones. Theme mood applied.",
@@ -110,12 +121,16 @@ CARD RULES — THESE ARE ABSOLUTE AND CANNOT BE BROKEN:
 - The card must NEVER appear landscape-oriented with the fold at the bottom or top
 - The card must ALWAYS stand upright with the fold on the left side
 - Show the full front face — no cropping of any edge
+- If an envelope is shown, it is always a plain white unbranded envelope — never any colour other than white
 `.trim();
 
 const PRINT_RULES_BASE = `
 PRINT RULES:
 - The print design shown in the reference image must be reproduced exactly as supplied
 - Never alter the artwork, text, colours, fonts, or layout
+- CRITICAL: Never add, invent, or insert any extra element, object, symbol, or text into the design that is not in the reference image
+- CRITICAL: Never remove, omit, or crop out any element, object, symbol, or text that IS in the reference image
+- The artwork inside the print must match the reference image pixel-for-pixel — only the surrounding scene/frame/room changes, never the design itself
 - Print must be fully visible and legible
 - No reflections blocking the design
 - No hands unless the recipe specifically requires it
@@ -125,7 +140,7 @@ const FINISH_RULES: Record<Finish, string> = {
   framed: `
 FINISH — Framed:
 - The print is inside a neutral, modern, thin frame
-- Frame colour should complement the room styling (light wood, black, or white)
+- Frame colour must ALWAYS be either plain black or plain white — never wood, never any other colour
 `.trim(),
   unframed: `
 FINISH — Unframed:
@@ -148,13 +163,16 @@ INVITE RULES — THESE ARE ABSOLUTE AND CANNOT BE BROKEN:
 - The invite is a single flat panel — it does NOT fold and has no spine
 - Show the full flat face of the invite, fully visible — no cropping of any edge
 - Never show it standing open like a greeting card or folded in any way
-- An envelope, if shown, is a plain unbranded envelope placed beside the invite — never sealed around it or obscuring the design
+- If an envelope is shown, it is always a plain white unbranded envelope placed beside the invite — never sealed around it or obscuring the design, never any colour other than white
 `.trim();
 
 const HARD_SET_RULES = `
 SET RULES — THESE ARE ABSOLUTE AND CANNOT BE BROKEN:
 - Each reference image shows one distinct design belonging to the same matching set
 - Reproduce every design's artwork exactly as supplied — never alter, merge, or redraw any of them
+- CRITICAL: Never add, invent, or insert any extra element, object, symbol, or text into ANY design that is not in that design's own reference image
+- CRITICAL: Never remove, omit, or crop out any element, object, symbol, or text that IS in a design's reference image
+- CRITICAL: Never blend, combine, or swap elements between the different designs in the set — each design's artwork stays exactly as its own reference image, pixel-for-pixel
 - Keep framing, size, and style consistent across every image in the set
 - In group scenes, arrange the supplied designs together as described — do not invent extra designs or duplicate one design to fill space
 - In individual scenes, show only the one specified design — no other designs from the set should appear
@@ -299,8 +317,8 @@ function buildProductDetails(productType: ProductType, size: string, finish: Fin
       "Details:",
       `• Size: ${size || "A6"}`,
       "• Printed on premium quality card stock",
+      "• Comes with a white envelope",
       "• Blank or personalised exactly as ordered",
-      "• Sold as invites only — envelopes not included unless stated",
       "• Printed and shipped from the UK",
     ].join("\n");
   }

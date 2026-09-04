@@ -30,6 +30,8 @@ const THEMES = [
   { value: "kids", label: "Kids" },
   { value: "gaming", label: "Gaming" },
   { value: "wedding", label: "Wedding" },
+  { value: "boys", label: "Boys" },
+  { value: "girls", label: "Girls" },
 ];
 
 const ROOMS = [
@@ -66,12 +68,13 @@ function showsFinish(type: ProductType): boolean {
   return type === "print" || type === "set2" || type === "set3";
 }
 
-type Mode = "all" | "copy" | "images";
+type Mode = "all" | "copy" | "images" | "front";
 
 const MODES: { value: Mode; label: string; hint: string }[] = [
   { value: "all", label: "Everything", hint: "Copy + selected images" },
   { value: "copy", label: "Copy only", hint: "Title, description, meta — no image credits used" },
   { value: "images", label: "Images only", hint: "Only the images you tick below" },
+  { value: "front", label: "Front image", hint: "Just the uniform hero shot — same look for every product type" },
 ];
 
 const RECIPE_LABELS = [
@@ -83,7 +86,7 @@ const RECIPE_LABELS = [
 ];
 
 const PRINT_RECIPE_LABELS = [
-  "Hero wall shot",
+  "Hero studio shot",
   "Close detail shot",
   "Desk / shelf styling",
   "Lifestyle wide scene",
@@ -91,7 +94,7 @@ const PRINT_RECIPE_LABELS = [
 ];
 
 const SET3_RECIPE_LABELS = [
-  "Gallery wall (all 3)",
+  "Gallery hero (all 3)",
   "Styled grouping (all 3)",
   "Individual — Design 1",
   "Individual — Design 2",
@@ -99,7 +102,7 @@ const SET3_RECIPE_LABELS = [
 ];
 
 const SET2_RECIPE_LABELS = [
-  "Gallery wall (pair)",
+  "Gallery hero (pair)",
   "Styled grouping (pair)",
   "Flatlay (pair)",
   "Individual — Design 1",
@@ -265,11 +268,13 @@ export default function CreateProductPage() {
   }
 
   async function handleGenerate() {
-    const wantsCopy = mode !== "images";
-    const wantsImages = mode !== "copy";
-    const recipeIndexes = wantsImages
-      ? selectedRecipes.map((on, i) => (on ? i : -1)).filter((i) => i >= 0)
-      : [];
+    const wantsCopy = mode === "all" || mode === "copy";
+    const wantsImages = mode === "all" || mode === "images" || mode === "front";
+    const recipeIndexes = !wantsImages
+      ? []
+      : mode === "front"
+      ? [0]
+      : selectedRecipes.map((on, i) => (on ? i : -1)).filter((i) => i >= 0);
 
     if (wantsCopy && !productName.trim()) {
       alert("Please enter a product name.");
@@ -604,7 +609,7 @@ export default function CreateProductPage() {
             </div>
 
             {/* Which images */}
-            {mode !== "copy" && (
+            {(mode === "all" || mode === "images") && (
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="block text-xs font-semibold text-slate-700">
@@ -695,7 +700,7 @@ export default function CreateProductPage() {
             {/* Product name */}
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Product name / title hint {mode === "images" ? "(optional)" : "*"}
+                Product name / title hint {mode === "images" || mode === "front" ? "(optional)" : "*"}
               </label>
               <input
                 type="text"
@@ -764,6 +769,8 @@ export default function CreateProductPage() {
                 ? "Generate copy only"
                 : mode === "images"
                 ? `Generate ${selectedRecipes.filter(Boolean).length} image(s)`
+                : mode === "front"
+                ? "Generate front image"
                 : "Generate"}
             </button>
           </div>
