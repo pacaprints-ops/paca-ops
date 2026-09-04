@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI, Modality } from "@google/genai";
+import sharp from "sharp";
 import { buildImagePrompt, getRecipeDesignIndexes, ProductType } from "@/app/lib/productRules";
 
 export const maxDuration = 60;
@@ -83,9 +84,42 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    let outputBase64 = imagePart.inlineData.data;
+    let outputMimeType = imagePart.inlineData.mimeType;
+
+    // Gemini reliably leaves a large plain-background margin around the product on the
+    // hero shot (recipe 1) no matter how the prompt asks it to frame tighter. Rather than
+    // keep tuning wording, crop in around the centered product and scale back up so the
+    // fill is consistent regardless of what Gemini actually rendered.
+    if ((recipeIndex ?? 0) === 0) {
+      try {
+        const rawBuffer = Buffer.from(imagePart.inlineData.data, "base64");
+        const img = sharp(rawBuffer);
+        const meta = await img.metadata();
+        const w = meta.width ?? 0;
+        const h = meta.height ?? 0;
+        if (w > 0 && h > 0) {
+          const cropFraction = 0.6; // keep the central 60% of each dimension, then scale back up
+          const cropW = Math.round(w * cropFraction);
+          const cropH = Math.round(h * cropFraction);
+          const left = Math.round((w - cropW) / 2);
+          const top = Math.round((h - cropH) / 2);
+          const cropped = await sharp(rawBuffer)
+            .extract({ left, top, width: cropW, height: cropH })
+            .resize(w, h)
+            .png()
+            .toBuffer();
+          outputBase64 = cropped.toString("base64");
+          outputMimeType = "image/png";
+        }
+      } catch {
+        // If cropping fails for any reason, fall back to Gemini's original output.
+      }
+    }
+
     return NextResponse.json({
-      imageBase64: imagePart.inlineData.data,
-      mimeType: imagePart.inlineData.mimeType,
+      imageBase64: outputBase64,
+      mimeType: outputMimeType,
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";
