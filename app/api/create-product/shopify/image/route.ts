@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Shopify not configured" }, { status: 500 });
   }
 
-  const { productId, imageBase64, alt } = await req.json();
+  const { productId, imageBase64, alt, position } = await req.json();
 
   if (!productId || !imageBase64) {
     return NextResponse.json({ error: "productId and imageBase64 are required" }, { status: 400 });
@@ -24,7 +24,13 @@ export async function POST(req: NextRequest) {
         "Content-Type": "application/json",
         "X-Shopify-Access-Token": token,
       },
-      body: JSON.stringify({ image: { attachment: imageBase64, alt: alt ?? "" } }),
+      body: JSON.stringify({
+        image: {
+          attachment: imageBase64,
+          alt: alt ?? "",
+          ...(position ? { position } : {}),
+        },
+      }),
     }
   );
 

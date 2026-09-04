@@ -229,6 +229,7 @@ export default function CreateProductPage() {
   const [existingProductRef, setExistingProductRef] = useState<string>("");
   const [existingError, setExistingError] = useState<string>("");
   const [existingUrl, setExistingUrl] = useState<string>("");
+  const [makeMainImage, setMakeMainImage] = useState(true);
 
   // Restore results from sessionStorage on mount (survives mobile download navigation)
   useEffect(() => {
@@ -443,7 +444,8 @@ export default function CreateProductPage() {
     setExistingUrl("");
     let failed = 0;
     let adminUrl = "";
-    for (const img of validImages) {
+    for (let i = 0; i < validImages.length; i++) {
+      const img = validImages[i];
       try {
         const res = await fetch("/api/create-product/shopify/image", {
           method: "POST",
@@ -452,6 +454,7 @@ export default function CreateProductPage() {
             productId,
             imageBase64: img.imageBase64,
             alt: copy?.title ?? productName,
+            ...(makeMainImage && i === 0 ? { position: 1 } : {}),
           }),
         });
         const data = await res.json();
@@ -927,6 +930,15 @@ export default function CreateProductPage() {
                 value={existingProductRef}
                 onChange={(e) => setExistingProductRef(e.target.value)}
               />
+              <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={makeMainImage}
+                  onChange={(e) => setMakeMainImage(e.target.checked)}
+                  className="rounded border-slate-300"
+                />
+                Make the first ticked image the main image (position 1) on the listing
+              </label>
               <button
                 type="button"
                 onClick={addImagesToExistingProduct}
