@@ -43,8 +43,8 @@ const HERO_FRAME_OVERRIDE =
 const HERO_ENVELOPE =
   "ENVELOPE — MANDATORY, matching the approved reference photo exactly: " +
   "1) ORIENTATION: portrait only — taller than it is wide, standing upright like the product itself. NEVER landscape, NEVER wider than tall, NEVER rotated onto its side. " +
-  "2) SIZE: a correctly-sized, snug-fit envelope for this exact product — its visible width is almost the same as the product's width (only marginally wider), NOT a noticeably bigger or oversized envelope. " +
-  "3) POSITION: stands leaning back against the background, directly behind the product, touching it with zero gap — the product's back rests flat against the envelope's front face. Only the envelope's triangular flap tip peeks out above the product's top edge, plus a thin sliver down one side — nothing more. " +
+  "2) SIZE — measure this precisely: the envelope's visible width and height must each be no more than 10% larger than the product's — e.g. if the product is 100px wide and 140px tall, the envelope is roughly 105-110px wide and 145-155px tall, NOT larger than that. This is a snug-fit card envelope, not a statement/oversized envelope — most of the envelope is HIDDEN behind the product. " +
+  "3) POSITION: stands leaning back against the background, directly behind the product, touching it with zero gap — the product's back rests flat against the envelope's front face. Because the envelope is only slightly bigger than the product (per rule 2), only a THIN sliver of it is visible: the triangular flap tip peeking above the product's top edge, and a narrow strip down ONE side only — never a wide margin of envelope visible on multiple sides. " +
   "4) GROUP: the product+envelope together are centered as one unit in the frame, even margins left/right.";
 
 const CARD_RECIPES = [
