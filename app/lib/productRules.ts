@@ -36,19 +36,16 @@ export const ROOMS: Record<string, string> = {
 
 // Shared hero-shot background used for RECIPE 1 of every product type, so the first image
 // generated is always uniform across the whole catalogue regardless of theme/room chosen.
+// Kept deliberately short and concrete — long, heavily-qualified prompts made results less
+// consistent, not more.
 const HERO_BACKGROUND =
-  "FIXED TEMPLATE for this shot only — always use exactly this, ignore the room styling and theme prop sections. This exact framing and background must be produced identically every single time this shot is generated, for every product type. The product (plus its envelope, if it has one) is centered in frame, set against a seamless pure white studio background (plain white, not grey, not cream, not off-white) — no room setting, no theme props, no decor of any kind. Soft, even, shadowless studio lighting. No hands. No clutter. No other objects in frame. (Note: the final crop/zoom is applied afterward in post-processing, so framing it as a normal, moderately-cropped product shot here is fine — don't try to zoom in yourself.)";
-const HERO_FRAME_OVERRIDE =
-  "If framed, the frame must always be plain black for this shot (never white, never wood). If unframed or laminated, present with no frame per the Finish rule below.";
+  "Plain white background, no room, no props, no theme decoration. Centered, with a normal even amount of white space around it, like a standard ecommerce product photo — not a tight macro crop.";
+const HERO_FRAME_OVERRIDE = "If framed, the frame is plain black.";
 const HERO_ENVELOPE =
-  "ENVELOPE — MANDATORY, matching the approved reference photo exactly: " +
-  "1) ORIENTATION: the envelope always matches the product's own shape — if the product is square, the envelope is square too (NOT wider than it is tall); if the product is a portrait rectangle, the envelope is a portrait rectangle too (taller than wide). In both cases the envelope stands upright like the product. NEVER landscape, NEVER wider than tall, NEVER rotated onto its side, regardless of the product's shape. " +
-  "2) SIZE — measure this precisely: the supplied reference image's own outer edges ARE the product's exact physical edges — even where the design itself is white or has no visible border, the reference image boundary is the true size and shape of the product, and that is what you must measure the envelope against. The envelope's width and height must each be no more than 10% larger than that product boundary — e.g. a product 100 units wide is matched by an envelope roughly 105-110 units wide, never much more, and the envelope must NEVER extend beyond the edges of the overall frame. This is a snug-fit card envelope, not a statement/oversized envelope — most of the envelope is HIDDEN behind the product. " +
-  "3) POSITION: stands leaning back against the background, directly behind the product, touching it with zero gap — the product's back rests flat against the envelope's front face. Because the envelope is only slightly bigger than the product (per rule 2), only a THIN sliver of it is visible: the triangular flap tip peeking above the product's top edge, and a narrow strip down ONE side only — never a wide margin of envelope visible on multiple sides. " +
-  "4) GROUP: the product+envelope together are centered as one unit in the frame, even margins left/right.";
+  "A plain white envelope, the same size and shape as the card. The card lies flat on top of the envelope, shifted slightly to the left, so a narrow strip of the envelope shows along the right edge only.";
 
 const CARD_RECIPES = [
-  `RECIPE 1 — Hero Product Shot: ${HERO_BACKGROUND} Single card front-facing, centered in frame. ${HERO_ENVELOPE}`,
+  `RECIPE 1 — Hero Product Shot: ${HERO_BACKGROUND} ${HERO_ENVELOPE}`,
   "RECIPE 2 — Lifestyle Scene: Card placed naturally in the selected room environment. Room styling visible but subtle. Theme props lightly included.",
   "RECIPE 3 — Flatlay with Envelope: Card flat on surface with envelope beside it. Theme props allowed. Minimal, clean layout.",
   "RECIPE 4 — Hand-held Shot: Card held naturally by a neutral hand. Background blurred using room tones. Theme mood applied.",
@@ -81,7 +78,7 @@ const SET2_RECIPES = [
 ];
 
 const INVITE_RECIPES = [
-  `RECIPE 1 — Hero Flat Shot: ${HERO_BACKGROUND} Single invite shown fully flat and front-facing, propped upright leaning slightly, same treatment as the card hero shot. No fold. ${HERO_ENVELOPE}`,
+  `RECIPE 1 — Hero Flat Shot: ${HERO_BACKGROUND} ${HERO_ENVELOPE} The invite itself stays flat — no fold.`,
   "RECIPE 2 — Lifestyle Scene: Invite placed flat within the selected event setting (e.g. party table, desk). Theme props lightly included.",
   "RECIPE 3 — Flatlay with Envelope: Invite flat on a surface with a plain unbranded envelope beside it. Theme props allowed. Minimal, clean layout.",
   "RECIPE 4 — Hand-held Shot: Invite held flat and naturally by a neutral hand. Background blurred using room tones. Theme mood applied.",

@@ -17,43 +17,6 @@ type GeneratedImage = {
   mimeType: string;
 };
 
-// Gemini reliably leaves a large plain-background margin around the product on the hero
-// shot (recipe 1) no matter how the prompt asks it to frame tighter. Rather than keep
-// tuning wording, crop in around the centered product client-side and scale back up so
-// the fill is consistent regardless of what Gemini actually rendered.
-function cropHeroImage(img: GeneratedImage): Promise<GeneratedImage> {
-  return new Promise((resolve) => {
-    const el = new Image();
-    el.onload = () => {
-      const w = el.naturalWidth;
-      const h = el.naturalHeight;
-      if (!w || !h) {
-        resolve(img);
-        return;
-      }
-      const cropFraction = 0.6; // keep the central 60% of each dimension, then scale back up
-      const cropW = Math.round(w * cropFraction);
-      const cropH = Math.round(h * cropFraction);
-      const left = Math.round((w - cropW) / 2);
-      const top = Math.round((h - cropH) / 2);
-      const canvas = document.createElement("canvas");
-      canvas.width = w;
-      canvas.height = h;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) {
-        resolve(img);
-        return;
-      }
-      ctx.drawImage(el, left, top, cropW, cropH, 0, 0, w, h);
-      const dataUrl = canvas.toDataURL("image/png");
-      const base64 = dataUrl.split(",")[1];
-      resolve(base64 ? { imageBase64: base64, mimeType: "image/png" } : img);
-    };
-    el.onerror = () => resolve(img);
-    el.src = `data:${img.mimeType};base64,${img.imageBase64}`;
-  });
-}
-
 const THEMES = [
   { value: "default", label: "General / No theme" },
   { value: "birthday", label: "Birthday" },
@@ -392,10 +355,9 @@ export default function CreateProductPage() {
           });
           const data = await res.json();
           if (!res.ok) throw new Error(data.error ?? "Failed to generate image");
-          const finalImg: GeneratedImage = i === 0 ? await cropHeroImage(data) : data;
           setImages((prev) => {
             const next = [...prev];
-            next[i] = finalImg;
+            next[i] = data;
             return next;
           });
         } catch (err) {
