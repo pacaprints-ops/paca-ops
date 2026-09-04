@@ -37,7 +37,7 @@ export const ROOMS: Record<string, string> = {
 // Shared hero-shot background used for RECIPE 1 of every product type, so the first image
 // generated is always uniform across the whole catalogue regardless of theme/room chosen.
 const HERO_BACKGROUND =
-  "FIXED TEMPLATE for this shot only — always use exactly this, ignore the room styling and theme prop sections. The product must be centered in the frame with even margins on all sides, set against a seamless pure white studio background (plain white, not grey, not cream, not off-white) — no room setting, no theme props, no decor of any kind. Soft, even, shadowless studio lighting. No hands. No clutter. No other objects in frame.";
+  "FIXED TEMPLATE for this shot only — always use exactly this, ignore the room styling and theme prop sections. Close-up hero product shot: the product must fill almost the entire frame (roughly 85-90% of the frame height) with only small, tight, even margins on all sides — this is a tight close-up crop, NOT a small product floating in a large empty background. Centered in frame, set against a seamless pure white studio background (plain white, not grey, not cream, not off-white) — no room setting, no theme props, no decor of any kind. Soft, even, shadowless studio lighting. No hands. No clutter. No other objects in frame.";
 const HERO_FRAME_OVERRIDE =
   "If framed, the frame must always be plain black for this shot (never white, never wood). If unframed or laminated, present with no frame per the Finish rule below.";
 const HERO_ENVELOPE =
