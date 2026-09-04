@@ -42,7 +42,7 @@ const HERO_BACKGROUND =
   "Plain white background, no room, no props, no theme decoration. Centered, with a normal even amount of white space around it, like a standard ecommerce product photo — not a tight macro crop.";
 const HERO_FRAME_OVERRIDE = "If framed, the frame is plain black.";
 const HERO_ENVELOPE =
-  "A plain white envelope, the same size and shape as the card. The card lies flat on top of the envelope, shifted slightly to the left, so a narrow strip of the envelope shows along the right edge only.";
+  "A plain white envelope, the same size and shape as the card. The card lies flat on top of the envelope, shifted slightly to the left — not centered — so a narrow strip of the envelope shows along the right edge only, and no envelope is visible on the left, top, or bottom.";
 
 const CARD_RECIPES = [
   `RECIPE 1 — Hero Product Shot: ${HERO_BACKGROUND} ${HERO_ENVELOPE}`,
@@ -142,6 +142,7 @@ const FINISH_RULES: Record<Finish, string> = {
 FINISH — Framed:
 - The print is inside a neutral, modern, thin frame
 - Frame colour must ALWAYS be either plain black or plain white — never wood, never any other colour
+- No mat, mount, or passe-partout border inside the frame — the print goes edge-to-edge to the inner lip of the frame, exactly like a normal poster frame
 `.trim(),
   unframed: `
 FINISH — Unframed:
