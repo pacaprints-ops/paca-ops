@@ -41,7 +41,7 @@ const HERO_BACKGROUND =
 const HERO_FRAME_OVERRIDE =
   "If framed, the frame must always be plain black for this shot (never white, never wood). If unframed or laminated, present with no frame per the Finish rule below.";
 const HERO_ENVELOPE =
-  "It rests flat against the front of its plain white envelope, leaning back against it at a slight angle for support — the two are touching each other, not standing independently apart. The envelope is directly behind, peeking out visibly above and to one side.";
+  "Exact staging, matching the approved reference photo — a plain white envelope stands leaning back against the studio background, its bottom edge resting on the surface directly behind where the product will sit; its triangular back flap point is visible above the top edge of the product. The product then leans back directly against the flat front face of that envelope, its own bottom edge also resting on the surface a little in front of the envelope's — the back of the product must be in physical contact with the front of the envelope, touching with zero gap between them. Never place the envelope elsewhere in the scene, never let it float or hover, never let the product stand fully upright/vertical away from the envelope, and never separate the two — they lean against each other as one connected pair on the same surface.";
 
 const CARD_RECIPES = [
   `RECIPE 1 — Hero Product Shot: ${HERO_BACKGROUND} Single card front-facing, centered in frame. ${HERO_ENVELOPE}`,
