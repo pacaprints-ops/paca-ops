@@ -717,14 +717,20 @@ export default function CreateProductPage() {
                 Theme / occasion
               </label>
               <select
-                className="pp-select"
+                className="pp-select disabled:opacity-40 disabled:cursor-not-allowed"
                 value={theme}
                 onChange={(e) => setTheme(e.target.value)}
+                disabled={mode === "front"}
               >
                 {THEMES.map((t) => (
                   <option key={t.value} value={t.value}>{t.label}</option>
                 ))}
               </select>
+              {mode === "front" && (
+                <p className="mt-1 text-xs text-slate-400">
+                  The front image is a fixed plain studio shot — theme doesn&rsquo;t apply.
+                </p>
+              )}
             </div>
 
             {/* Room */}
@@ -733,14 +739,20 @@ export default function CreateProductPage() {
                 Room / setting
               </label>
               <select
-                className="pp-select"
+                className="pp-select disabled:opacity-40 disabled:cursor-not-allowed"
                 value={room}
                 onChange={(e) => setRoom(e.target.value)}
+                disabled={mode === "front"}
               >
                 {ROOMS.map((r) => (
                   <option key={r.value} value={r.value}>{r.label}</option>
                 ))}
               </select>
+              {mode === "front" && (
+                <p className="mt-1 text-xs text-slate-400">
+                  The front image is a fixed plain studio shot — room doesn&rsquo;t apply.
+                </p>
+              )}
             </div>
 
             {/* Extra notes */}
