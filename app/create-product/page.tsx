@@ -69,7 +69,11 @@ const MIN_RESCALE = 0.5;
 const MAX_RESCALE = 3;
 const RESCALE_DEADBAND = 0.03; // skip rescaling if already within 3% of the target
 
-function chromaKeyHeroImage(img: GeneratedImage, mode: "white" | "transparent"): Promise<GeneratedImage> {
+function chromaKeyHeroImage(
+  img: GeneratedImage,
+  mode: "white" | "transparent",
+  allowResize: boolean
+): Promise<GeneratedImage> {
   return new Promise((resolve) => {
     const el = new Image();
     el.onload = () => {
@@ -142,7 +146,11 @@ function chromaKeyHeroImage(img: GeneratedImage, mode: "white" | "transparent"):
 
       // Normalize the product's size: scale + recenter around its bounding box so it fills
       // a consistent proportion of the frame regardless of how Gemini actually rendered it.
-      if (maxX >= minX && maxY >= minY) {
+      // Skipped for envelope compositions (card/invite): the envelope isn't blue either, so
+      // it gets swept into the "product" bounding box, and zooming into that box magnifies
+      // any soft chroma-key edge residue around the envelope into a visible grey banding
+      // artifact. Prints/sets have no envelope and don't hit this.
+      if (allowResize && maxX >= minX && maxY >= minY) {
         const boxW = maxX - minX + 1;
         const boxH = maxY - minY + 1;
         // Scale so the product's larger dimension fills the target fraction of the frame's
@@ -528,7 +536,10 @@ export default function CreateProductPage() {
           });
           const data = await res.json();
           if (!res.ok) throw new Error(data.error ?? "Failed to generate image");
-          const finalImg: GeneratedImage = i === 0 ? await chromaKeyHeroImage(data, heroBgMode) : data;
+          const finalImg: GeneratedImage =
+            i === 0
+              ? await chromaKeyHeroImage(data, heroBgMode, productType !== "card" && productType !== "invite")
+              : data;
           setImages((prev) => {
             const next = [...prev];
             next[i] = finalImg;
