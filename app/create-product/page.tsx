@@ -366,6 +366,7 @@ export default function CreateProductPage() {
 
   const [copyError, setCopyError] = useState<string>("");
   const [imageErrors, setImageErrors] = useState<string[]>(["", "", "", "", ""]);
+  const [formError, setFormError] = useState<string>("");
 
   const [shopifyPushing, setShopifyPushing] = useState(false);
   const [shopifyUrl, setShopifyUrl] = useState<string>("");
@@ -458,12 +459,14 @@ export default function CreateProductPage() {
       ? [0]
       : selectedRecipes.map((on, i) => (on ? i : -1)).filter((i) => i >= 0);
 
+    setFormError("");
+
     if (wantsCopy && !productName.trim()) {
-      alert("Please enter a product name.");
+      setFormError("Please enter a product name.");
       return;
     }
     if (wantsImages && imageFiles.some((f) => !f)) {
-      alert(
+      setFormError(
         imageFiles.length > 1
           ? `Please upload all ${imageFiles.length} design images.`
           : "Please upload the product front image."
@@ -471,7 +474,7 @@ export default function CreateProductPage() {
       return;
     }
     if (wantsImages && recipeIndexes.length === 0) {
-      alert("Please tick at least one image to generate.");
+      setFormError("Please tick at least one image to generate.");
       return;
     }
 
@@ -984,6 +987,12 @@ export default function CreateProductPage() {
                 onChange={(e) => setExtraNotes(e.target.value)}
               />
             </div>
+
+            {formError && (
+              <p className="text-sm font-semibold text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                {formError}
+              </p>
+            )}
 
             <button
               type="button"
