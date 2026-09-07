@@ -58,6 +58,17 @@ function sampleCornerColor(data: Uint8ClampedArray, w: number, h: number) {
   return { r: rSum / count, g: gSum / count, b: bSum / count };
 }
 
+// Gemini doesn't render the product at a consistent size shot-to-shot either — one print in
+// a catalogue can come out visibly bigger than the rest despite the same "normal ecommerce
+// margin" instruction. Since the chroma-key pass already knows exactly which pixels are
+// background vs. product, that same data can be reused to deterministically resize/recenter
+// the product to a fixed fill ratio every time, instead of hoping Gemini frames it the same
+// way twice.
+const TARGET_FILL_RATIO = 0.8; // product's larger dimension should fill this fraction of the frame
+const MIN_RESCALE = 0.5;
+const MAX_RESCALE = 3;
+const RESCALE_DEADBAND = 0.03; // skip rescaling if already within 3% of the target
+
 function chromaKeyHeroImage(img: GeneratedImage, mode: "white" | "transparent"): Promise<GeneratedImage> {
   return new Promise((resolve) => {
     const el = new Image();
@@ -90,30 +101,85 @@ function chromaKeyHeroImage(img: GeneratedImage, mode: "white" | "transparent"):
         return;
       }
 
-      for (let i = 0; i < data.length; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-        const dr = r - key.r;
-        const dg = g - key.g;
-        const db = b - key.b;
-        const dist = Math.sqrt(dr * dr + dg * dg + db * db);
-        let keyAmount = 0;
-        if (dist <= CHROMA_INNER_THRESHOLD) keyAmount = 1;
-        else if (dist < CHROMA_OUTER_THRESHOLD) {
-          keyAmount = 1 - (dist - CHROMA_INNER_THRESHOLD) / (CHROMA_OUTER_THRESHOLD - CHROMA_INNER_THRESHOLD);
-        }
-        if (keyAmount > 0) {
-          if (mode === "transparent") {
-            data[i + 3] = Math.round(data[i + 3] * (1 - keyAmount));
-          } else {
-            data[i] = Math.round(r + (255 - r) * keyAmount);
-            data[i + 1] = Math.round(g + (255 - g) * keyAmount);
-            data[i + 2] = Math.round(b + (255 - b) * keyAmount);
+      let minX = w;
+      let minY = h;
+      let maxX = -1;
+      let maxY = -1;
+
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const i = (y * w + x) * 4;
+          const r = data[i];
+          const g = data[i + 1];
+          const b = data[i + 2];
+          const dr = r - key.r;
+          const dg = g - key.g;
+          const db = b - key.b;
+          const dist = Math.sqrt(dr * dr + dg * dg + db * db);
+          let keyAmount = 0;
+          if (dist <= CHROMA_INNER_THRESHOLD) keyAmount = 1;
+          else if (dist < CHROMA_OUTER_THRESHOLD) {
+            keyAmount = 1 - (dist - CHROMA_INNER_THRESHOLD) / (CHROMA_OUTER_THRESHOLD - CHROMA_INNER_THRESHOLD);
+          }
+          if (keyAmount < 0.5) {
+            if (x < minX) minX = x;
+            if (x > maxX) maxX = x;
+            if (y < minY) minY = y;
+            if (y > maxY) maxY = y;
+          }
+          if (keyAmount > 0) {
+            if (mode === "transparent") {
+              data[i + 3] = Math.round(data[i + 3] * (1 - keyAmount));
+            } else {
+              data[i] = Math.round(r + (255 - r) * keyAmount);
+              data[i + 1] = Math.round(g + (255 - g) * keyAmount);
+              data[i + 2] = Math.round(b + (255 - b) * keyAmount);
+            }
           }
         }
       }
       ctx.putImageData(imageData, 0, 0);
+
+      // Normalize the product's size: scale + recenter around its bounding box so it fills
+      // a consistent proportion of the frame regardless of how Gemini actually rendered it.
+      if (maxX >= minX && maxY >= minY) {
+        const boxW = maxX - minX + 1;
+        const boxH = maxY - minY + 1;
+        // Scale so the product's larger dimension fills the target fraction of the frame's
+        // corresponding dimension, clamped to a sane range, then recenter it on the frame.
+        const fillScale = Math.min(
+          Math.max((Math.max(w, h) * TARGET_FILL_RATIO) / Math.max(boxW, boxH), MIN_RESCALE),
+          MAX_RESCALE
+        );
+        const cx = (minX + maxX) / 2;
+        const cy = (minY + maxY) / 2;
+        // Only rescale if it's meaningfully different — avoids jitter from tiny measurement noise.
+        if (Math.abs(fillScale - 1) > RESCALE_DEADBAND) {
+          const outCanvas = document.createElement("canvas");
+          outCanvas.width = w;
+          outCanvas.height = h;
+          const octx = outCanvas.getContext("2d");
+          if (octx) {
+            if (mode !== "transparent") {
+              octx.fillStyle = "#ffffff";
+              octx.fillRect(0, 0, w, h);
+            }
+            octx.save();
+            octx.translate(w / 2, h / 2);
+            octx.scale(fillScale, fillScale);
+            octx.translate(-cx, -cy);
+            octx.drawImage(canvas, 0, 0);
+            octx.restore();
+            const dataUrl2 = outCanvas.toDataURL("image/png");
+            const base64_2 = dataUrl2.split(",")[1];
+            if (base64_2) {
+              resolve({ imageBase64: base64_2, mimeType: "image/png" });
+              return;
+            }
+          }
+        }
+      }
+
       const dataUrl = canvas.toDataURL("image/png");
       const base64 = dataUrl.split(",")[1];
       resolve(base64 ? { imageBase64: base64, mimeType: "image/png" } : img);
