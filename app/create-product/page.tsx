@@ -21,10 +21,42 @@ type GeneratedImage = {
 // productRules.ts) instead of asking Gemini for "white" directly — its own idea of white
 // always came out as a soft grey vignette, and background-removal tools (including
 // Shopify's) can't reliably separate a white product from a white background. Keying out
-// a known, uncommon solid colour with simple pixel maths sidesteps both problems.
-const CHROMA_KEY = { r: 0, g: 0, b: 255 };
-const CHROMA_INNER_THRESHOLD = 60; // fully keyed within this colour distance
+// a solid colour with simple pixel maths sidesteps both problems.
+//
+// Gemini doesn't render a consistent, predictable exact shade of blue each time (a hardcoded
+// target colour missed it entirely on one test — it came out pale sky-blue, nowhere near the
+// assumed pure blue). So the key colour is sampled live from the image's own corners instead
+// of assumed, and only applied if those corners actually look blue-ish — otherwise the image
+// is returned unchanged rather than risking a bad key.
+const CHROMA_INNER_THRESHOLD = 60; // fully keyed within this colour distance of the sampled key
 const CHROMA_OUTER_THRESHOLD = 140; // no keying beyond this distance; soft edge in between
+const CORNER_SAMPLE_BOX = 10; // px, square sampled at each corner to find the backdrop colour
+
+function sampleCornerColor(data: Uint8ClampedArray, w: number, h: number) {
+  const box = Math.min(CORNER_SAMPLE_BOX, w, h);
+  const corners: [number, number][] = [
+    [0, 0],
+    [w - box, 0],
+    [0, h - box],
+    [w - box, h - box],
+  ];
+  let rSum = 0;
+  let gSum = 0;
+  let bSum = 0;
+  let count = 0;
+  for (const [cx, cy] of corners) {
+    for (let y = cy; y < cy + box; y++) {
+      for (let x = cx; x < cx + box; x++) {
+        const idx = (y * w + x) * 4;
+        rSum += data[idx];
+        gSum += data[idx + 1];
+        bSum += data[idx + 2];
+        count++;
+      }
+    }
+  }
+  return { r: rSum / count, g: gSum / count, b: bSum / count };
+}
 
 function chromaKeyHeroImage(img: GeneratedImage, mode: "white" | "transparent"): Promise<GeneratedImage> {
   return new Promise((resolve) => {
@@ -47,13 +79,24 @@ function chromaKeyHeroImage(img: GeneratedImage, mode: "white" | "transparent"):
       ctx.drawImage(el, 0, 0);
       const imageData = ctx.getImageData(0, 0, w, h);
       const data = imageData.data;
+
+      const key = sampleCornerColor(data, w, h);
+      // Safety net: only key it out if the sampled corners are actually blue-ish. If Gemini
+      // ignored the backdrop instruction (or the product itself touches a corner), skip
+      // keying entirely rather than risk mangling the image.
+      const isBlueish = key.b - Math.max(key.r, key.g) > 15;
+      if (!isBlueish) {
+        resolve(img);
+        return;
+      }
+
       for (let i = 0; i < data.length; i += 4) {
         const r = data[i];
         const g = data[i + 1];
         const b = data[i + 2];
-        const dr = r - CHROMA_KEY.r;
-        const dg = g - CHROMA_KEY.g;
-        const db = b - CHROMA_KEY.b;
+        const dr = r - key.r;
+        const dg = g - key.g;
+        const db = b - key.b;
         const dist = Math.sqrt(dr * dr + dg * dg + db * db);
         let keyAmount = 0;
         if (dist <= CHROMA_INNER_THRESHOLD) keyAmount = 1;
