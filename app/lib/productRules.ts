@@ -45,7 +45,7 @@ export const ROOMS: Record<string, string> = {
 // reliably separate a white product from a white backdrop — a solid, uncommon key colour
 // with no gradient/shadow can be swapped out with simple, deterministic pixel maths instead.
 const HERO_BACKGROUND =
-  "A flat, solid, evenly-lit chroma-key blue backdrop (like a film blue-screen) filling the entire frame behind the product — pure solid blue, no gradient, no shadow, no vignette, no room, no props, no theme decoration. Centered, with a normal even amount of space around it, like a standard ecommerce product photo — not a tight macro crop.";
+  "A flat, solid, evenly-lit chroma-key blue backdrop (like a film blue-screen) filling the entire frame behind the product — pure solid blue, no gradient, no shadow, no vignette, no room, no props, no theme decoration. Centered, with a normal even amount of space around it, like a standard ecommerce product photo — not a tight macro crop. IMPORTANT: this blue backdrop is intentional and required for this shot — it overrides the later brand-colour rules about neutral tones and \"whites not blue\", which do not apply here. Do not replace it with a neutral, beige, or natural-daylight lifestyle setting.";
 const HERO_FRAME_OVERRIDE = "If framed, the frame is plain black.";
 const HERO_ENVELOPE =
   "A plain white envelope, the same size and shape as the card. The card lies flat on top of the envelope, shifted slightly to the left — not centered — so a narrow strip of the envelope shows along the right edge only, and no envelope is visible on the left, top, or bottom.";
@@ -268,9 +268,14 @@ export function buildImagePrompt(
     ? `Additional styling notes (treat as refinement, never break brand rules): ${extraNotes}`
     : "";
 
+  // Recipe 1 (index 0) is always the plain-backdrop hero shot — never call it "lifestyle"
+  // here, since that framing primes the model toward a styled scene before it even reaches
+  // the actual scene instructions below, overriding them.
+  const isHeroShot = recipeIndex === 0;
+  const shotKind = isHeroShot ? "studio product mockup" : "lifestyle product mockup";
   const outputSpec = landscape
-    ? "Create a photorealistic lifestyle product mockup image, landscape orientation (approximately 800x600 pixels, wider than tall)."
-    : "Create a photorealistic lifestyle product mockup image at 600x600 pixels.";
+    ? `Create a photorealistic ${shotKind} image, landscape orientation (approximately 800x600 pixels, wider than tall).`
+    : `Create a photorealistic ${shotKind} image at 600x600 pixels.`;
 
   const outputLine = landscape
     ? "Output: one photorealistic image only, landscape orientation (wider than tall). No text overlays. No watermarks."
