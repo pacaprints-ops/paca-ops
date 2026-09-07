@@ -17,6 +17,69 @@ type GeneratedImage = {
   mimeType: string;
 };
 
+// The hero shot (recipe 1) is generated on a flat chroma-key blue backdrop (see
+// productRules.ts) instead of asking Gemini for "white" directly — its own idea of white
+// always came out as a soft grey vignette, and background-removal tools (including
+// Shopify's) can't reliably separate a white product from a white background. Keying out
+// a known, uncommon solid colour with simple pixel maths sidesteps both problems.
+const CHROMA_KEY = { r: 0, g: 0, b: 255 };
+const CHROMA_INNER_THRESHOLD = 60; // fully keyed within this colour distance
+const CHROMA_OUTER_THRESHOLD = 140; // no keying beyond this distance; soft edge in between
+
+function chromaKeyHeroImage(img: GeneratedImage, mode: "white" | "transparent"): Promise<GeneratedImage> {
+  return new Promise((resolve) => {
+    const el = new Image();
+    el.onload = () => {
+      const w = el.naturalWidth;
+      const h = el.naturalHeight;
+      if (!w || !h) {
+        resolve(img);
+        return;
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        resolve(img);
+        return;
+      }
+      ctx.drawImage(el, 0, 0);
+      const imageData = ctx.getImageData(0, 0, w, h);
+      const data = imageData.data;
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        const dr = r - CHROMA_KEY.r;
+        const dg = g - CHROMA_KEY.g;
+        const db = b - CHROMA_KEY.b;
+        const dist = Math.sqrt(dr * dr + dg * dg + db * db);
+        let keyAmount = 0;
+        if (dist <= CHROMA_INNER_THRESHOLD) keyAmount = 1;
+        else if (dist < CHROMA_OUTER_THRESHOLD) {
+          keyAmount = 1 - (dist - CHROMA_INNER_THRESHOLD) / (CHROMA_OUTER_THRESHOLD - CHROMA_INNER_THRESHOLD);
+        }
+        if (keyAmount > 0) {
+          if (mode === "transparent") {
+            data[i + 3] = Math.round(data[i + 3] * (1 - keyAmount));
+          } else {
+            data[i] = Math.round(r + (255 - r) * keyAmount);
+            data[i + 1] = Math.round(g + (255 - g) * keyAmount);
+            data[i + 2] = Math.round(b + (255 - b) * keyAmount);
+          }
+        }
+      }
+      ctx.putImageData(imageData, 0, 0);
+      const dataUrl = canvas.toDataURL("image/png");
+      const base64 = dataUrl.split(",")[1];
+      resolve(base64 ? { imageBase64: base64, mimeType: "image/png" } : img);
+    };
+    el.onerror = () => resolve(img);
+    el.src = `data:${img.mimeType};base64,${img.imageBase64}`;
+  });
+}
+
 const THEMES = [
   { value: "default", label: "General / No theme" },
   { value: "birthday", label: "Birthday" },
@@ -167,13 +230,14 @@ export default function CreateProductPage() {
   const [productName, setProductName] = useState("");
   const [productType, setProductType] = useState<ProductType>("card");
   const [size, setSize] = useState("A5");
-  const [finish, setFinish] = useState<Finish>("framed");
-  const [price, setPrice] = useState(suggestedPrice("card", "framed"));
+  const [finish, setFinish] = useState<Finish>("unframed");
+  const [price, setPrice] = useState(suggestedPrice("card", "unframed"));
   const [theme, setTheme] = useState("default");
   const [room, setRoom] = useState("default");
   const [extraNotes, setExtraNotes] = useState("");
   const [imageFiles, setImageFiles] = useState<(File | null)[]>([null]);
   const [imagePreviews, setImagePreviews] = useState<(string | null)[]>([null]);
+  const [heroBgMode, setHeroBgMode] = useState<"white" | "transparent">("white");
 
   const [status, setStatus] = useState<string>("");
   const [running, setRunning] = useState(false);
@@ -240,8 +304,8 @@ export default function CreateProductPage() {
   function handleProductTypeChange(type: ProductType) {
     setProductType(type);
     setSize(defaultSize(type));
-    setFinish("framed");
-    setPrice(suggestedPrice(type, "framed"));
+    setFinish("unframed");
+    setPrice(suggestedPrice(type, "unframed"));
     const count = designCount(type);
     setImageFiles(Array(count).fill(null));
     setImagePreviews(Array(count).fill(null));
@@ -355,9 +419,10 @@ export default function CreateProductPage() {
           });
           const data = await res.json();
           if (!res.ok) throw new Error(data.error ?? "Failed to generate image");
+          const finalImg: GeneratedImage = i === 0 ? await chromaKeyHeroImage(data, heroBgMode) : data;
           setImages((prev) => {
             const next = [...prev];
-            next[i] = data;
+            next[i] = finalImg;
             return next;
           });
         } catch (err) {
@@ -538,6 +603,34 @@ export default function CreateProductPage() {
               </div>
               <p className="mt-1 text-xs text-slate-500">
                 {MODES.find((m) => m.value === mode)?.hint}
+              </p>
+            </div>
+
+            {/* Hero/front image background */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Front image background
+              </label>
+              <div className="flex gap-2">
+                {(["white", "transparent"] as const).map((opt) => (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => setHeroBgMode(opt)}
+                    className={[
+                      "flex-1 rounded-xl px-3 py-2 text-xs font-semibold border transition capitalize",
+                      heroBgMode === opt
+                        ? "bg-slate-900 text-white border-slate-900"
+                        : "bg-white text-slate-700 border-slate-200 hover:border-slate-400",
+                    ].join(" ")}
+                  >
+                    {opt}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-1 text-xs text-slate-500">
+                Only affects the first/hero image (recipe 1) — its background is keyed out to
+                pure white or transparent automatically, so it&rsquo;s never an approximate grey.
               </p>
             </div>
 

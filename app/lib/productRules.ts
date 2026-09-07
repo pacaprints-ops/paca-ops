@@ -38,8 +38,14 @@ export const ROOMS: Record<string, string> = {
 // generated is always uniform across the whole catalogue regardless of theme/room chosen.
 // Kept deliberately short and concrete — long, heavily-qualified prompts made results less
 // consistent, not more.
+// Rendered on a flat chroma-key blue backdrop rather than "plain white" — the app then
+// keys that exact blue out to pure white/transparent in code afterward. This sidesteps
+// two problems: Gemini's own idea of "white" always came out as a soft grey vignette
+// (never a flat #FFFFFF), and any background-removal tool (Shopify's included) can't
+// reliably separate a white product from a white backdrop — a solid, uncommon key colour
+// with no gradient/shadow can be swapped out with simple, deterministic pixel maths instead.
 const HERO_BACKGROUND =
-  "Plain white background, no room, no props, no theme decoration. Centered, with a normal even amount of white space around it, like a standard ecommerce product photo — not a tight macro crop.";
+  "A flat, solid, evenly-lit chroma-key blue backdrop (like a film blue-screen) filling the entire frame behind the product — pure solid blue, no gradient, no shadow, no vignette, no room, no props, no theme decoration. Centered, with a normal even amount of space around it, like a standard ecommerce product photo — not a tight macro crop.";
 const HERO_FRAME_OVERRIDE = "If framed, the frame is plain black.";
 const HERO_ENVELOPE =
   "A plain white envelope, the same size and shape as the card. The card lies flat on top of the envelope, shifted slightly to the left — not centered — so a narrow strip of the envelope shows along the right edge only, and no envelope is visible on the left, top, or bottom.";
@@ -238,7 +244,7 @@ export function buildImagePrompt(
   recipeIndex: number,
   extraNotes: string,
   landscape: boolean = false,
-  finish: Finish = "framed"
+  finish: Finish = "unframed"
 ): string {
   const themeKey = theme.toLowerCase().replace(/\s+/g, "_");
   const roomKey = room.toLowerCase().replace(/\s+/g, "_");
@@ -303,7 +309,11 @@ const FINISH_DETAIL_LINES: Record<Finish, string> = {
   laminated: "• Laminated finish — durable and wipe-clean, ready to use straight away",
 };
 
-function buildProductDetails(productType: ProductType, size: string, finish: Finish = "framed"): string {
+// Hard catalogue rules — always enforced, never left to the AI to decide:
+// - Cards and invites always ship with a plain white envelope.
+// - Prints (and print sets) are always sold as either framed or unframed (laminated is a valid
+//   third finish for wipe-clean items like chore charts, but framed/unframed are the two defaults).
+function buildProductDetails(productType: ProductType, size: string, finish: Finish = "unframed"): string {
   if (productType === "card") {
     return [
       "Details:",
@@ -311,7 +321,7 @@ function buildProductDetails(productType: ProductType, size: string, finish: Fin
       "• Printed on premium quality card stock",
       "• Comes with a white envelope",
       "• Blank inside — ready for your personal message",
-      "• Printed and shipped from the UK",
+      "• Created, made and shipped from the UK",
     ].join("\n");
   }
   if (productType === "invite") {
@@ -321,7 +331,7 @@ function buildProductDetails(productType: ProductType, size: string, finish: Fin
       "• Printed on premium quality card stock",
       "• Comes with a white envelope",
       "• Blank or personalised exactly as ordered",
-      "• Printed and shipped from the UK",
+      "• Created, made and shipped from the UK",
     ].join("\n");
   }
   if (productType === "set2" || productType === "set3") {
@@ -333,7 +343,7 @@ function buildProductDetails(productType: ProductType, size: string, finish: Fin
       "• High-quality fine art prints on premium paper",
       FINISH_DETAIL_LINES[finish],
       "• Colours are vibrant and fade-resistant",
-      "• Printed and shipped from the UK",
+      "• Created, made and shipped from the UK",
     ].join("\n");
   }
   return [
@@ -342,7 +352,7 @@ function buildProductDetails(productType: ProductType, size: string, finish: Fin
     "• High-quality fine art print on premium paper",
     FINISH_DETAIL_LINES[finish],
     "• Colours are vibrant and fade-resistant",
-    "• Printed and shipped from the UK",
+    "• Created, made and shipped from the UK",
   ].join("\n");
 }
 
@@ -361,7 +371,7 @@ export function buildCopyPrompt(
   theme: string,
   room: string,
   extraNotes: string,
-  finish: Finish = "framed"
+  finish: Finish = "unframed"
 ): string {
   const details = buildProductDetails(productType, size, finish);
   const typeLabel = PRODUCT_TYPE_LABELS[productType] ?? productType;
@@ -375,10 +385,10 @@ export function buildCopyPrompt(
     : "";
 
   return `
-You write product descriptions for PacaPrints, a small UK card and print shop. The tone is warm, friendly, and a little witty — like a mate who knows their stuff giving you a genuine recommendation. You want the reader to smile, feel something, and actually want to buy it. Write with personality. Make it feel real.
+You write product descriptions for PacaPrints, a small UK card and print shop. The tone is warm, friendly, and a little witty — like a good friend who knows their stuff giving you a genuine recommendation. You want the reader to smile, feel something, and actually want to buy it. Write with personality. Make it feel real.
 
-Banned phrases (never use these — they kill the vibe instantly):
-"perfect for", "look no further", "elevate", "nestled", "timeless", "thoughtfully crafted", "make memories", "loved ones", "cherish", "heartfelt", "curated", "stunning", "beautiful", "elegant", "touch of", "speaks volumes", "say it all", "the perfect gift".
+Banned phrases (never use these — they kill the vibe instantly, and some of these turned out to be crutch phrases we leaned on in almost every description — vary your wording, don't reuse the same line every time):
+"perfect for", "look no further", "elevate", "nestled", "timeless", "thoughtfully crafted", "make memories", "loved ones", "cherish", "heartfelt", "curated", "stunning", "beautiful", "elegant", "touch of", "speaks volumes", "say it all", "the perfect gift", "imagine their face", "mate".
 
 Product:
 - Name/title hint: ${productName}
@@ -397,8 +407,13 @@ Return ONLY valid JSON with no markdown or extra text:
 
 Rules:
 - Title: 60-80 characters, plain and descriptive, include the occasion and product type, UK English
-- Description: 3-4 paragraphs. First paragraph: hook the reader — who is this for and why will they love it? Be specific and a little cheeky if it fits. Second paragraph: paint a picture of the moment — getting it, giving it, seeing it on a wall. Third paragraph: sell the quality without being boring about it. End with this exact block on a new line:\n${details}
+- Description: exactly 2 short paragraphs, 3-4 sentences each (roughly 60-90 words per paragraph, ~120-180 words total — tight, no filler, no repeating the same idea twice). First paragraph: hook the reader with personality — who is this for, why will they love it, and paint a quick picture of the moment (getting it, giving it, seeing it land). Be specific and a little cheeky if it fits. Second paragraph: sell the quality/craft without being boring about it — include one concrete line about the physical product itself (card stock weight/feel, envelope, size — whatever's relevant to the product type) before the closing line. End with this exact block on a new line:\n${details}
 - Meta title: under 60 characters, plain and clear
 - Meta description: 150-160 characters, punchy and enticing — make someone want to click
+
+Approved example (match this tone, structure, and length exactly — this is the house style, not just a style hint):
+"For the woman who's got a wicked sense of humour and probably deserves a medal for putting up with everyone. This one skips the soppy stuff for a proper bit of cheeky banter — the kind that gets a raised eyebrow, then a slow grin, then an actual cackle. Tea-spitting optional but likely.
+
+Printed on sturdy, premium A5 card stock with colours that actually pop — none of that flimsy, washed-out nonsense. Even the envelope's been given a bit of care — proper crisp white, not some flimsy freebie. Blank inside, so the rude bit's all yours to write."
 `.trim();
 }
