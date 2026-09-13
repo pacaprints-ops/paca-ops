@@ -5,6 +5,7 @@ import { supabase } from "../../../lib/supabaseClient";
 
 type TrackerRow = {
   id: string;
+  shopify_handle: string | null;
   product_title: string;
   product_type: string | null;
   shopify_url: string | null;

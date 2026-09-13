@@ -53,8 +53,8 @@ export async function POST() {
 
   // Untick everything first, so products that have gone to draft/archived (or
   // been deleted) since the last sync end up unticked below rather than stuck
-  // as "live". Matching is by title, not Shopify's product id — a renamed
-  // product will show as unticked here and reappear as a new row once re-marked.
+  // as "live". Matching is by Shopify's handle (stable + unique, unlike title,
+  // which duplicates across a handful of real products).
   const { error: resetError } = await supabase
     .from("product_tracker")
     .update({ shopify_live: false, updated_at: new Date().toISOString() })
@@ -65,6 +65,7 @@ export async function POST() {
   }
 
   const rows = products.map((p) => ({
+    shopify_handle: p.handle,
     product_title: p.title,
     product_type: p.product_type || null,
     shopify_url: `${STORE_URL}/products/${p.handle}`,
@@ -74,7 +75,7 @@ export async function POST() {
 
   const { error } = await supabase
     .from("product_tracker")
-    .upsert(rows, { onConflict: "product_title" });
+    .upsert(rows, { onConflict: "shopify_handle" });
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
