@@ -183,17 +183,40 @@ export default function ProductTrackerPage() {
     setSyncMsg("");
     setErrorMsg("");
 
-    try {
-      const res = await fetch("/api/product-tracker/sync-shopify", { method: "POST" });
-      const data = await res.json();
+    let cursor: string | null = null;
+    let total = 0;
 
-      if (!res.ok) {
-        setErrorMsg(data.error ?? "Sync failed");
-        setSyncing(false);
-        return;
+    try {
+      // Pages through Shopify in batches so each request stays well under any
+      // platform timeout, regardless of how large the catalog grows.
+      for (;;) {
+        setSyncMsg(`Syncing… ${total} so far`);
+
+        const res: Response = await fetch("/api/product-tracker/sync-shopify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cursor }),
+        });
+        const data: {
+          error?: string;
+          synced?: number;
+          nextCursor: string | null;
+          done: boolean;
+        } = await res.json();
+
+        if (!res.ok) {
+          setErrorMsg(data.error ?? "Sync failed");
+          setSyncing(false);
+          return;
+        }
+
+        total += data.synced ?? 0;
+
+        if (data.done) break;
+        cursor = data.nextCursor;
       }
 
-      setSyncMsg(`Synced ${data.synced} live Shopify products.`);
+      setSyncMsg(`Synced ${total} live Shopify products.`);
       await loadRows();
     } catch (e: unknown) {
       setErrorMsg(e instanceof Error ? e.message : "Sync failed");
