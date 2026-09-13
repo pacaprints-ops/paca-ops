@@ -48,6 +48,12 @@ const operationsTools: Tool[] = [
 
 const pacaTools: Tool[] = [
   {
+    title: "Product Tracker",
+    description: "Which products are live on Shopify, TikTok, eBay and Etsy, with links to raw files.",
+    href: "/admin/paca/product-tracker",
+    icon: "🗂️",
+  },
+  {
     title: "Reminders",
     description: "Things to come back to — tick off as you go.",
     href: "/admin/reminders",
