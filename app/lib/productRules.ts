@@ -34,67 +34,46 @@ export const ROOMS: Record<string, string> = {
   boys_bedroom: "Soft, bright, clean. Light wood/white desk or bedside. Palette hint: navy/teal/grey accents (subtle). Allowed props: minimal desk items, small plant.",
 };
 
-// Shared hero-shot background used for RECIPE 1 of every product type, so the first image
-// generated is always uniform across the whole catalogue regardless of theme/room chosen.
-// Kept deliberately short and concrete — long, heavily-qualified prompts made results less
-// consistent, not more.
-// Rendered on a flat chroma-key blue backdrop rather than "plain white" — the app then
-// keys that exact blue out to pure white/transparent in code afterward. This sidesteps
-// two problems: Gemini's own idea of "white" always came out as a soft grey vignette
-// (never a flat #FFFFFF), and any background-removal tool (Shopify's included) can't
-// reliably separate a white product from a white backdrop — a solid, uncommon key colour
-// with no gradient/shadow can be swapped out with simple, deterministic pixel maths instead.
-const HERO_BACKGROUND =
-  "A flat, solid, evenly-lit chroma-key blue backdrop (like a film blue-screen) filling the entire frame behind the product — pure solid blue, no gradient, no shadow, no vignette, no room, no props, no theme decoration. Centered, with a normal even amount of space around it, like a standard ecommerce product photo — not a tight macro crop. IMPORTANT: this blue backdrop is intentional and required for this shot — it overrides the later brand-colour rules about neutral tones and \"whites not blue\", which do not apply here. Do not replace it with a neutral, beige, or natural-daylight lifestyle setting.";
-const HERO_FRAME_OVERRIDE = "If framed, the frame is plain black.";
-const HERO_ENVELOPE =
-  "A plain white envelope, the same size and shape as the card. The card lies flat on top of the envelope, shifted slightly to the left — not centered — so a narrow strip of the envelope shows along the right edge only, and no envelope is visible on the left, top, or bottom.";
-
 const CARD_RECIPES = [
-  `RECIPE 1 — Hero Product Shot: ${HERO_BACKGROUND} ${HERO_ENVELOPE}`,
-  "RECIPE 2 — Lifestyle Scene: Card placed naturally in the selected room environment. Room styling visible but subtle. Theme props lightly included.",
-  "RECIPE 3 — Flatlay with Envelope: Card flat on surface with envelope beside it. Theme props allowed. Minimal, clean layout.",
-  "RECIPE 4 — Hand-held Shot: Card held naturally by a neutral hand. Background blurred using room tones. Theme mood applied.",
-  "RECIPE 5 — Packaging / Desk Scene: Card positioned near packaging or desk styling. Theme cues allowed. Premium ecommerce feel.",
+  "RECIPE 1 — Lifestyle Scene: Card placed naturally in the selected room environment. Room styling visible but subtle. Theme props lightly included.",
+  "RECIPE 2 — Flatlay with Envelope: Card flat on surface with envelope beside it. Theme props allowed. Minimal, clean layout.",
+  "RECIPE 3 — Hand-held Shot: Card held naturally by a neutral hand. Background blurred using room tones. Theme mood applied.",
+  "RECIPE 4 — Packaging / Desk Scene: Card positioned near packaging or desk styling. Theme cues allowed. Premium ecommerce feel.",
 ];
 
 const PRINT_RECIPES = [
-  `RECIPE 1 — Hero Product Shot: ${HERO_BACKGROUND} Single print centered in frame, presented per the Finish rule below. ${HERO_FRAME_OVERRIDE}`,
-  "RECIPE 2 — Close Detail Shot: Print displayed, slightly angled, presented per the Finish rule below. Focus on artwork clarity and design legibility.",
-  "RECIPE 3 — Desk / Shelf Styling: Print resting on desk or shelf with minimal props, presented per the Finish rule below.",
-  "RECIPE 4 — Lifestyle Wide Scene: Print visible within a wider room scene, presented per the Finish rule below. Room context clear.",
-  "RECIPE 5 — Packaging / Flatlay: Print flat with packaging materials. Clean flatlay composition.",
+  "RECIPE 1 — Close Detail Shot: Print displayed, slightly angled, presented per the Finish rule below. Focus on artwork clarity and design legibility.",
+  "RECIPE 2 — Desk / Shelf Styling: Print resting on desk or shelf with minimal props, presented per the Finish rule below.",
+  "RECIPE 3 — Lifestyle Wide Scene: Print visible within a wider room scene, presented per the Finish rule below. Room context clear.",
+  "RECIPE 4 — Packaging / Flatlay: Print flat with packaging materials. Clean flatlay composition.",
 ];
 
 // Set recipes: group scenes show every uploaded design together, individual scenes show one design only.
 const SET3_RECIPES = [
-  `RECIPE 1 — Gallery Grouping (all 3): ${HERO_BACKGROUND} All three reference designs displayed together, evenly spaced as a matching gallery set (row or gentle asymmetric cluster), presented per the Finish rule below. ${HERO_FRAME_OVERRIDE} Each design's artwork reproduced exactly as supplied — never merged, resized inconsistently, or altered.`,
-  "RECIPE 2 — Styled Grouping (all 3): All three reference designs displayed together in a styled scene — leaning together on a shelf, console, or floor with even, complementary spacing, presented per the Finish rule below. Each design reproduced exactly as supplied.",
-  "RECIPE 3 — Individual Hero Shot (Design 1): Only the first reference design shown, displayed front-facing on a clean surface, presented per the Finish rule below and matching the group shots' style. No other design from the set in shot.",
-  "RECIPE 4 — Individual Hero Shot (Design 2): Only the second reference design shown, displayed front-facing, presented per the Finish rule below and matching the group shots' style. No other design from the set in shot.",
-  "RECIPE 5 — Individual Hero Shot (Design 3): Only the third reference design shown, displayed front-facing, presented per the Finish rule below and matching the group shots' style. No other design from the set in shot.",
+  "RECIPE 1 — Styled Grouping (all 3): All three reference designs displayed together in a styled scene — leaning together on a shelf, console, or floor with even, complementary spacing, presented per the Finish rule below. Each design reproduced exactly as supplied.",
+  "RECIPE 2 — Individual Hero Shot (Design 1): Only the first reference design shown, displayed front-facing on a clean surface, presented per the Finish rule below and matching the group shots' style. No other design from the set in shot.",
+  "RECIPE 3 — Individual Hero Shot (Design 2): Only the second reference design shown, displayed front-facing, presented per the Finish rule below and matching the group shots' style. No other design from the set in shot.",
+  "RECIPE 4 — Individual Hero Shot (Design 3): Only the third reference design shown, displayed front-facing, presented per the Finish rule below and matching the group shots' style. No other design from the set in shot.",
 ];
 
 const SET2_RECIPES = [
-  `RECIPE 1 — Gallery Grouping (pair): ${HERO_BACKGROUND} Both reference designs displayed together, evenly spaced as a matching pair, presented per the Finish rule below. ${HERO_FRAME_OVERRIDE} Each design's artwork reproduced exactly as supplied — never merged, resized inconsistently, or altered.`,
-  "RECIPE 2 — Styled Grouping (pair): Both reference designs displayed together in a styled scene — leaning together on a shelf or console, presented per the Finish rule below. Each design reproduced exactly as supplied.",
-  "RECIPE 3 — Flatlay Pair: Both reference designs laid flat together, side by side, clean flatlay composition.",
-  "RECIPE 4 — Individual Hero Shot (Design 1): Only the first reference design shown, displayed front-facing on a clean surface, presented per the Finish rule below and matching the group shots' style. No other design from the set in shot.",
-  "RECIPE 5 — Individual Hero Shot (Design 2): Only the second reference design shown, displayed front-facing, presented per the Finish rule below and matching the group shots' style. No other design from the set in shot.",
+  "RECIPE 1 — Styled Grouping (pair): Both reference designs displayed together in a styled scene — leaning together on a shelf or console, presented per the Finish rule below. Each design reproduced exactly as supplied.",
+  "RECIPE 2 — Flatlay Pair: Both reference designs laid flat together, side by side, clean flatlay composition.",
+  "RECIPE 3 — Individual Hero Shot (Design 1): Only the first reference design shown, displayed front-facing on a clean surface, presented per the Finish rule below and matching the group shots' style. No other design from the set in shot.",
+  "RECIPE 4 — Individual Hero Shot (Design 2): Only the second reference design shown, displayed front-facing, presented per the Finish rule below and matching the group shots' style. No other design from the set in shot.",
 ];
 
 const INVITE_RECIPES = [
-  `RECIPE 1 — Hero Flat Shot: ${HERO_BACKGROUND} ${HERO_ENVELOPE} The invite itself stays flat — no fold.`,
-  "RECIPE 2 — Lifestyle Scene: Invite placed flat within the selected event setting (e.g. party table, desk). Theme props lightly included.",
-  "RECIPE 3 — Flatlay with Envelope: Invite flat on a surface with a plain unbranded envelope beside it. Theme props allowed. Minimal, clean layout.",
-  "RECIPE 4 — Hand-held Shot: Invite held flat and naturally by a neutral hand. Background blurred using room tones. Theme mood applied.",
-  "RECIPE 5 — Stack / Desk Scene: A small neat stack of the invite positioned near desk or packaging styling. Theme cues allowed. Premium ecommerce feel.",
+  "RECIPE 1 — Lifestyle Scene: Invite placed flat within the selected event setting (e.g. party table, desk). Theme props lightly included.",
+  "RECIPE 2 — Flatlay with Envelope: Invite flat on a surface with a plain unbranded envelope beside it. Theme props allowed. Minimal, clean layout.",
+  "RECIPE 3 — Hand-held Shot: Invite held flat and naturally by a neutral hand. Background blurred using room tones. Theme mood applied.",
+  "RECIPE 4 — Stack / Desk Scene: A small neat stack of the invite positioned near desk or packaging styling. Theme cues allowed. Premium ecommerce feel.",
 ];
 
 // Per-recipe-index map of which uploaded design(s) a set recipe needs — "all" sends every
 // uploaded reference image to Gemini (group shots), a number sends just that one design (individual shots).
-const SET2_RECIPE_DESIGNS: ("all" | number)[] = ["all", "all", "all", 0, 1];
-const SET3_RECIPE_DESIGNS: ("all" | number)[] = ["all", "all", 0, 1, 2];
+const SET2_RECIPE_DESIGNS: ("all" | number)[] = ["all", "all", 0, 1];
+const SET3_RECIPE_DESIGNS: ("all" | number)[] = ["all", 0, 1, 2];
 
 export function getRecipeDesignIndexes(productType: ProductType, recipeIndex: number): "all" | number {
   if (productType === "set2") return SET2_RECIPE_DESIGNS[recipeIndex] ?? "all";
@@ -268,11 +247,7 @@ export function buildImagePrompt(
     ? `Additional styling notes (treat as refinement, never break brand rules): ${extraNotes}`
     : "";
 
-  // Recipe 1 (index 0) is always the plain-backdrop hero shot — never call it "lifestyle"
-  // here, since that framing primes the model toward a styled scene before it even reaches
-  // the actual scene instructions below, overriding them.
-  const isHeroShot = recipeIndex === 0;
-  const shotKind = isHeroShot ? "studio product mockup" : "lifestyle product mockup";
+  const shotKind = "lifestyle product mockup";
   const outputSpec = landscape
     ? `Create a photorealistic ${shotKind} image, landscape orientation (approximately 800x600 pixels, wider than tall).`
     : `Create a photorealistic ${shotKind} image at 600x600 pixels.`;

@@ -17,186 +17,6 @@ type GeneratedImage = {
   mimeType: string;
 };
 
-// The hero shot (recipe 1) is generated on a flat chroma-key blue backdrop (see
-// productRules.ts) instead of asking Gemini for "white" directly — its own idea of white
-// always came out as a soft grey vignette, and background-removal tools (including
-// Shopify's) can't reliably separate a white product from a white background. Keying out
-// a solid colour with simple pixel maths sidesteps both problems.
-//
-// Gemini doesn't render a consistent, predictable exact shade of blue each time (a hardcoded
-// target colour missed it entirely on one test — it came out pale sky-blue, nowhere near the
-// assumed pure blue). So the key colour is sampled live from the image's own corners instead
-// of assumed, and only applied if those corners actually look blue-ish — otherwise the image
-// is returned unchanged rather than risking a bad key.
-const CHROMA_INNER_THRESHOLD = 60; // fully keyed within this colour distance of the sampled key
-const CHROMA_OUTER_THRESHOLD = 140; // no keying beyond this distance; soft edge in between
-const CORNER_SAMPLE_BOX = 10; // px, square sampled at each corner to find the backdrop colour
-
-function sampleCornerColor(data: Uint8ClampedArray, w: number, h: number) {
-  const box = Math.min(CORNER_SAMPLE_BOX, w, h);
-  const corners: [number, number][] = [
-    [0, 0],
-    [w - box, 0],
-    [0, h - box],
-    [w - box, h - box],
-  ];
-  let rSum = 0;
-  let gSum = 0;
-  let bSum = 0;
-  let count = 0;
-  for (const [cx, cy] of corners) {
-    for (let y = cy; y < cy + box; y++) {
-      for (let x = cx; x < cx + box; x++) {
-        const idx = (y * w + x) * 4;
-        rSum += data[idx];
-        gSum += data[idx + 1];
-        bSum += data[idx + 2];
-        count++;
-      }
-    }
-  }
-  return { r: rSum / count, g: gSum / count, b: bSum / count };
-}
-
-// Gemini doesn't render the product at a consistent size shot-to-shot either — one print in
-// a catalogue can come out visibly bigger than the rest despite the same "normal ecommerce
-// margin" instruction. Since the chroma-key pass already knows exactly which pixels are
-// background vs. product, that same data can be reused to deterministically resize/recenter
-// the product to a fixed fill ratio every time, instead of hoping Gemini frames it the same
-// way twice.
-const TARGET_FILL_RATIO = 0.8; // product's larger dimension should fill this fraction of the frame
-const MIN_RESCALE = 0.5;
-const MAX_RESCALE = 3;
-const RESCALE_DEADBAND = 0.03; // skip rescaling if already within 3% of the target
-
-function chromaKeyHeroImage(
-  img: GeneratedImage,
-  mode: "white" | "transparent",
-  allowResize: boolean
-): Promise<GeneratedImage> {
-  return new Promise((resolve) => {
-    const el = new Image();
-    el.onload = () => {
-      const w = el.naturalWidth;
-      const h = el.naturalHeight;
-      if (!w || !h) {
-        resolve(img);
-        return;
-      }
-      const canvas = document.createElement("canvas");
-      canvas.width = w;
-      canvas.height = h;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) {
-        resolve(img);
-        return;
-      }
-      ctx.drawImage(el, 0, 0);
-      const imageData = ctx.getImageData(0, 0, w, h);
-      const data = imageData.data;
-
-      const key = sampleCornerColor(data, w, h);
-      // Safety net: only key it out if the sampled corners are actually blue-ish. If Gemini
-      // ignored the backdrop instruction (or the product itself touches a corner), skip
-      // keying entirely rather than risk mangling the image.
-      const isBlueish = key.b - Math.max(key.r, key.g) > 15;
-      if (!isBlueish) {
-        resolve(img);
-        return;
-      }
-
-      let minX = w;
-      let minY = h;
-      let maxX = -1;
-      let maxY = -1;
-
-      for (let y = 0; y < h; y++) {
-        for (let x = 0; x < w; x++) {
-          const i = (y * w + x) * 4;
-          const r = data[i];
-          const g = data[i + 1];
-          const b = data[i + 2];
-          const dr = r - key.r;
-          const dg = g - key.g;
-          const db = b - key.b;
-          const dist = Math.sqrt(dr * dr + dg * dg + db * db);
-          let keyAmount = 0;
-          if (dist <= CHROMA_INNER_THRESHOLD) keyAmount = 1;
-          else if (dist < CHROMA_OUTER_THRESHOLD) {
-            keyAmount = 1 - (dist - CHROMA_INNER_THRESHOLD) / (CHROMA_OUTER_THRESHOLD - CHROMA_INNER_THRESHOLD);
-          }
-          if (keyAmount < 0.5) {
-            if (x < minX) minX = x;
-            if (x > maxX) maxX = x;
-            if (y < minY) minY = y;
-            if (y > maxY) maxY = y;
-          }
-          if (keyAmount > 0) {
-            if (mode === "transparent") {
-              data[i + 3] = Math.round(data[i + 3] * (1 - keyAmount));
-            } else {
-              data[i] = Math.round(r + (255 - r) * keyAmount);
-              data[i + 1] = Math.round(g + (255 - g) * keyAmount);
-              data[i + 2] = Math.round(b + (255 - b) * keyAmount);
-            }
-          }
-        }
-      }
-      ctx.putImageData(imageData, 0, 0);
-
-      // Normalize the product's size: scale + recenter around its bounding box so it fills
-      // a consistent proportion of the frame regardless of how Gemini actually rendered it.
-      // Skipped for envelope compositions (card/invite): the envelope isn't blue either, so
-      // it gets swept into the "product" bounding box, and zooming into that box magnifies
-      // any soft chroma-key edge residue around the envelope into a visible grey banding
-      // artifact. Prints/sets have no envelope and don't hit this.
-      if (allowResize && maxX >= minX && maxY >= minY) {
-        const boxW = maxX - minX + 1;
-        const boxH = maxY - minY + 1;
-        // Scale so the product's larger dimension fills the target fraction of the frame's
-        // corresponding dimension, clamped to a sane range, then recenter it on the frame.
-        const fillScale = Math.min(
-          Math.max((Math.max(w, h) * TARGET_FILL_RATIO) / Math.max(boxW, boxH), MIN_RESCALE),
-          MAX_RESCALE
-        );
-        const cx = (minX + maxX) / 2;
-        const cy = (minY + maxY) / 2;
-        // Only rescale if it's meaningfully different — avoids jitter from tiny measurement noise.
-        if (Math.abs(fillScale - 1) > RESCALE_DEADBAND) {
-          const outCanvas = document.createElement("canvas");
-          outCanvas.width = w;
-          outCanvas.height = h;
-          const octx = outCanvas.getContext("2d");
-          if (octx) {
-            if (mode !== "transparent") {
-              octx.fillStyle = "#ffffff";
-              octx.fillRect(0, 0, w, h);
-            }
-            octx.save();
-            octx.translate(w / 2, h / 2);
-            octx.scale(fillScale, fillScale);
-            octx.translate(-cx, -cy);
-            octx.drawImage(canvas, 0, 0);
-            octx.restore();
-            const dataUrl2 = outCanvas.toDataURL("image/png");
-            const base64_2 = dataUrl2.split(",")[1];
-            if (base64_2) {
-              resolve({ imageBase64: base64_2, mimeType: "image/png" });
-              return;
-            }
-          }
-        }
-      }
-
-      const dataUrl = canvas.toDataURL("image/png");
-      const base64 = dataUrl.split(",")[1];
-      resolve(base64 ? { imageBase64: base64, mimeType: "image/png" } : img);
-    };
-    el.onerror = () => resolve(img);
-    el.src = `data:${img.mimeType};base64,${img.imageBase64}`;
-  });
-}
-
 const THEMES = [
   { value: "default", label: "General / No theme" },
   { value: "birthday", label: "Birthday" },
@@ -248,17 +68,15 @@ function showsFinish(type: ProductType): boolean {
   return type === "print" || type === "set2" || type === "set3";
 }
 
-type Mode = "all" | "copy" | "images" | "front";
+type Mode = "all" | "copy" | "images";
 
 const MODES: { value: Mode; label: string; hint: string }[] = [
   { value: "all", label: "Everything", hint: "Copy + selected images" },
   { value: "copy", label: "Copy only", hint: "Title, description, meta — no image credits used" },
   { value: "images", label: "Images only", hint: "Only the images you tick below" },
-  { value: "front", label: "Front image", hint: "Just the uniform hero shot — same look for every product type" },
 ];
 
 const RECIPE_LABELS = [
-  "Hero product shot",
   "Lifestyle scene",
   "Flatlay with envelope",
   "Hand-held shot",
@@ -266,7 +84,6 @@ const RECIPE_LABELS = [
 ];
 
 const PRINT_RECIPE_LABELS = [
-  "Hero studio shot",
   "Close detail shot",
   "Desk / shelf styling",
   "Lifestyle wide scene",
@@ -274,7 +91,6 @@ const PRINT_RECIPE_LABELS = [
 ];
 
 const SET3_RECIPE_LABELS = [
-  "Gallery hero (all 3)",
   "Styled grouping (all 3)",
   "Individual — Design 1",
   "Individual — Design 2",
@@ -282,7 +98,6 @@ const SET3_RECIPE_LABELS = [
 ];
 
 const SET2_RECIPE_LABELS = [
-  "Gallery hero (pair)",
   "Styled grouping (pair)",
   "Flatlay (pair)",
   "Individual — Design 1",
@@ -290,7 +105,6 @@ const SET2_RECIPE_LABELS = [
 ];
 
 const INVITE_RECIPE_LABELS = [
-  "Hero flat shot",
   "Lifestyle scene",
   "Flatlay with envelope",
   "Hand-held shot",
@@ -338,10 +152,10 @@ export default function CreateProductPage() {
 
   const [mode, setMode] = useState<Mode>("all");
   const [selectedRecipes, setSelectedRecipes] = useState<boolean[]>([
-    true, true, true, true, true,
+    true, true, true, true,
   ]);
   const [landscapeFlags, setLandscapeFlags] = useState<boolean[]>([
-    false, false, false, false, false,
+    false, false, false, false,
   ]);
 
   const [productName, setProductName] = useState("");
@@ -354,18 +168,17 @@ export default function CreateProductPage() {
   const [extraNotes, setExtraNotes] = useState("");
   const [imageFiles, setImageFiles] = useState<(File | null)[]>([null]);
   const [imagePreviews, setImagePreviews] = useState<(string | null)[]>([null]);
-  const [heroBgMode, setHeroBgMode] = useState<"white" | "transparent">("white");
 
   const [status, setStatus] = useState<string>("");
   const [running, setRunning] = useState(false);
 
   const [copy, setCopy] = useState<Copy | null>(null);
   const [images, setImages] = useState<(GeneratedImage | null)[]>([
-    null, null, null, null, null,
+    null, null, null, null,
   ]);
 
   const [copyError, setCopyError] = useState<string>("");
-  const [imageErrors, setImageErrors] = useState<string[]>(["", "", "", "", ""]);
+  const [imageErrors, setImageErrors] = useState<string[]>(["", "", "", ""]);
   const [formError, setFormError] = useState<string>("");
 
   const [shopifyPushing, setShopifyPushing] = useState(false);
@@ -427,7 +240,7 @@ export default function CreateProductPage() {
     const count = designCount(type);
     setImageFiles(Array(count).fill(null));
     setImagePreviews(Array(count).fill(null));
-    setLandscapeFlags(Array(5).fill(type === "invite"));
+    setLandscapeFlags(Array(4).fill(type === "invite"));
   }
 
   function handleFinishChange(f: Finish) {
@@ -452,11 +265,9 @@ export default function CreateProductPage() {
 
   async function handleGenerate() {
     const wantsCopy = mode === "all" || mode === "copy";
-    const wantsImages = mode === "all" || mode === "images" || mode === "front";
+    const wantsImages = mode === "all" || mode === "images";
     const recipeIndexes = !wantsImages
       ? []
-      : mode === "front"
-      ? [0]
       : selectedRecipes.map((on, i) => (on ? i : -1)).filter((i) => i >= 0);
 
     setFormError("");
@@ -539,13 +350,9 @@ export default function CreateProductPage() {
           });
           const data = await res.json();
           if (!res.ok) throw new Error(data.error ?? "Failed to generate image");
-          const finalImg: GeneratedImage =
-            i === 0
-              ? await chromaKeyHeroImage(data, heroBgMode, productType !== "card" && productType !== "invite")
-              : data;
           setImages((prev) => {
             const next = [...prev];
-            next[i] = finalImg;
+            next[i] = data;
             return next;
           });
         } catch (err) {
@@ -694,7 +501,7 @@ export default function CreateProductPage() {
       <div className="pp-card p-5">
         <h1 className="text-2xl font-extrabold text-slate-900">Create Product</h1>
         <p className="mt-1 text-sm text-slate-600">
-          Upload your Canva design(s), fill in the details, and generate 5 lifestyle images + Shopify copy.
+          Upload your Canva design(s), fill in the details, and generate 4 lifestyle images + Shopify copy.
         </p>
       </div>
 
@@ -726,34 +533,6 @@ export default function CreateProductPage() {
               </div>
               <p className="mt-1 text-xs text-slate-500">
                 {MODES.find((m) => m.value === mode)?.hint}
-              </p>
-            </div>
-
-            {/* Hero/front image background */}
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Front image background
-              </label>
-              <div className="flex gap-2">
-                {(["white", "transparent"] as const).map((opt) => (
-                  <button
-                    key={opt}
-                    type="button"
-                    onClick={() => setHeroBgMode(opt)}
-                    className={[
-                      "flex-1 rounded-xl px-3 py-2 text-xs font-semibold border transition capitalize",
-                      heroBgMode === opt
-                        ? "bg-slate-900 text-white border-slate-900"
-                        : "bg-white text-slate-700 border-slate-200 hover:border-slate-400",
-                    ].join(" ")}
-                  >
-                    {opt}
-                  </button>
-                ))}
-              </div>
-              <p className="mt-1 text-xs text-slate-500">
-                Only affects the first/hero image (recipe 1) — its background is keyed out to
-                pure white or transparent automatically, so it&rsquo;s never an approximate grey.
               </p>
             </div>
 
@@ -832,15 +611,15 @@ export default function CreateProductPage() {
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="block text-xs font-semibold text-slate-700">
-                    Images to generate ({selectedRecipes.filter(Boolean).length}/5)
+                    Images to generate ({selectedRecipes.filter(Boolean).length}/4)
                   </label>
                   <button
                     type="button"
                     onClick={() =>
                       setSelectedRecipes(
                         selectedRecipes.every(Boolean)
-                          ? [false, false, false, false, false]
-                          : [true, true, true, true, true]
+                          ? [false, false, false, false]
+                          : [true, true, true, true]
                       )
                     }
                     className="text-xs font-semibold text-slate-600 underline hover:text-slate-900"
@@ -919,7 +698,7 @@ export default function CreateProductPage() {
             {/* Product name */}
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Product name / title hint {mode === "images" || mode === "front" ? "(optional)" : "*"}
+                Product name / title hint {mode === "images" ? "(optional)" : "*"}
               </label>
               <input
                 type="text"
@@ -939,17 +718,11 @@ export default function CreateProductPage() {
                 className="pp-select disabled:opacity-40 disabled:cursor-not-allowed"
                 value={theme}
                 onChange={(e) => setTheme(e.target.value)}
-                disabled={mode === "front"}
               >
                 {THEMES.map((t) => (
                   <option key={t.value} value={t.value}>{t.label}</option>
                 ))}
               </select>
-              {mode === "front" && (
-                <p className="mt-1 text-xs text-slate-400">
-                  The front image is a fixed plain studio shot — theme doesn&rsquo;t apply.
-                </p>
-              )}
             </div>
 
             {/* Room */}
@@ -961,17 +734,11 @@ export default function CreateProductPage() {
                 className="pp-select disabled:opacity-40 disabled:cursor-not-allowed"
                 value={room}
                 onChange={(e) => setRoom(e.target.value)}
-                disabled={mode === "front"}
               >
                 {ROOMS.map((r) => (
                   <option key={r.value} value={r.value}>{r.label}</option>
                 ))}
               </select>
-              {mode === "front" && (
-                <p className="mt-1 text-xs text-slate-400">
-                  The front image is a fixed plain studio shot — room doesn&rsquo;t apply.
-                </p>
-              )}
             </div>
 
             {/* Extra notes */}
@@ -1006,8 +773,6 @@ export default function CreateProductPage() {
                 ? "Generate copy only"
                 : mode === "images"
                 ? `Generate ${selectedRecipes.filter(Boolean).length} image(s)`
-                : mode === "front"
-                ? "Generate front image"
                 : "Generate"}
             </button>
           </div>
