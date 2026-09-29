@@ -13,11 +13,32 @@ type TrackerRow = {
   tiktok_live: boolean;
   ebay_live: boolean;
   etsy_live: boolean;
+  etsy_expires: string | null;
   raw_files_url: string | null;
   notes: string | null;
 };
 
 type PlatformKey = "shopify_live" | "tiktok_live" | "ebay_live" | "etsy_live";
+
+function formatSynced(iso: string | undefined) {
+  if (!iso) return "never checked";
+  return new Date(iso).toLocaleString("en-GB", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+// Etsy charges per listing and listings expire every 4 months, so flag ones
+// that are about to lapse (amber) or already have (red).
+function expiryClass(date: string | null) {
+  if (!date) return "text-slate-400";
+  const days = (new Date(date).getTime() - Date.now()) / 86_400_000;
+  if (days < 0) return "text-red-600 font-semibold";
+  if (days <= 30) return "text-amber-600 font-semibold";
+  return "text-slate-500";
+}
 
 function Tick({
   checked,
@@ -51,9 +72,20 @@ export default function ProductTrackerPage() {
   const [editingRawId, setEditingRawId] = useState<string | null>(null);
   const [rawDraft, setRawDraft] = useState("");
 
+  // When each platform's column was last checked against the real platform.
+  const [syncedAt, setSyncedAt] = useState<Record<string, string>>({});
+
+  async function loadSyncTimes() {
+    const { data } = await supabase.from("platform_sync").select("platform,synced_at");
+    setSyncedAt(
+      Object.fromEntries((data ?? []).map((r: { platform: string; synced_at: string }) => [r.platform, r.synced_at]))
+    );
+  }
+
   async function loadRows() {
     setLoading(true);
     setErrorMsg("");
+    void loadSyncTimes();
 
     try {
       const { data, error } = await supabase
@@ -118,6 +150,18 @@ export default function ProductTrackerPage() {
       // revert on failure
       setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, [key]: !next } : r)));
     }
+  }
+
+  async function saveEtsyExpiry(row: TrackerRow, value: string) {
+    const next = value || null;
+    setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, etsy_expires: next } : r)));
+
+    const { error } = await supabase
+      .from("product_tracker")
+      .update({ etsy_expires: next, updated_at: new Date().toISOString() })
+      .eq("id", row.id);
+
+    if (error) setErrorMsg(error.message);
   }
 
   function startEditRaw(row: TrackerRow) {
@@ -272,22 +316,22 @@ export default function ProductTrackerPage() {
               <span className="pp-subtle">Total:</span>{" "}
               <span className="font-extrabold text-slate-900">{counts.total}</span>
             </div>
-            <div>
-              <span className="pp-subtle">Shopify:</span>{" "}
-              <span className="font-extrabold text-slate-900">{counts.shopify}</span>
-            </div>
-            <div>
-              <span className="pp-subtle">TikTok:</span>{" "}
-              <span className="font-extrabold text-slate-900">{counts.tiktok}</span>
-            </div>
-            <div>
-              <span className="pp-subtle">eBay:</span>{" "}
-              <span className="font-extrabold text-slate-900">{counts.ebay}</span>
-            </div>
-            <div>
-              <span className="pp-subtle">Etsy:</span>{" "}
-              <span className="font-extrabold text-slate-900">{counts.etsy}</span>
-            </div>
+            {(
+              [
+                ["shopify", "Shopify", counts.shopify],
+                ["tiktok", "TikTok", counts.tiktok],
+                ["ebay", "eBay", counts.ebay],
+                ["etsy", "Etsy", counts.etsy],
+              ] as const
+            ).map(([key, label, count]) => (
+              <div key={key}>
+                <span className="pp-subtle">{label}:</span>{" "}
+                <span className="font-extrabold text-slate-900">{count}</span>
+                <div className="text-[11px] text-slate-400">
+                  updated {formatSynced(syncedAt[key])}
+                </div>
+              </div>
+            ))}
             <div>
               <span className="pp-subtle">Raw files linked:</span>{" "}
               <span className="font-extrabold text-slate-900">{counts.rawFiles}</span>
@@ -382,6 +426,15 @@ export default function ProductTrackerPage() {
                       checked={r.etsy_live}
                       onChange={(next) => togglePlatform(r, "etsy_live", next)}
                     />
+                    {r.etsy_live ? (
+                      <input
+                        type="date"
+                        title="Etsy listing expires"
+                        className={`block mx-auto mt-1 text-xs bg-transparent ${expiryClass(r.etsy_expires)}`}
+                        value={r.etsy_expires ?? ""}
+                        onChange={(e) => saveEtsyExpiry(r, e.target.value)}
+                      />
+                    ) : null}
                   </td>
                   <td>
                     {editingRawId === r.id ? (

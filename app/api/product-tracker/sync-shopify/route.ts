@@ -92,6 +92,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Shopify returned no active products" }, { status: 500 });
   }
 
+  if (!nextCursor) {
+    // Last page done — record when the Shopify column was last refreshed.
+    await supabase
+      .from("platform_sync")
+      .upsert({ platform: "shopify", synced_at: new Date().toISOString() });
+  }
+
   return NextResponse.json({
     synced: products.length,
     nextCursor,
