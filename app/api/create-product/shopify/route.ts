@@ -32,6 +32,7 @@ export async function POST(req: NextRequest) {
     set2: "Set of 2 Prints",
     set3: "Set of 3 Prints",
     invite: "Invitation",
+    ticket: "Ticket",
   };
 
   const priceValue = typeof price === "string" ? price.trim() : "";

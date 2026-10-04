@@ -48,6 +48,7 @@ const ROOMS = [
 
 const CARD_SIZES = ["A6", "A5", "Square", "A4"];
 const PRINT_SIZES = ["A4", "A3", "A2"];
+const TICKET_SIZES = ["210 x 99mm"];
 
 const PRODUCT_TYPES: { value: ProductType; label: string }[] = [
   { value: "card", label: "Card" },
@@ -55,6 +56,7 @@ const PRODUCT_TYPES: { value: ProductType; label: string }[] = [
   { value: "set2", label: "Set of 2 Prints" },
   { value: "set3", label: "Set of 3 Prints" },
   { value: "invite", label: "Invite" },
+  { value: "ticket", label: "Ticket" },
 ];
 
 // Finish only applies to the print-family types — cards/invites are never framed/laminated.
@@ -111,12 +113,20 @@ const INVITE_RECIPE_LABELS = [
   "Stack / desk scene",
 ];
 
+const TICKET_RECIPE_LABELS = [
+  "Wooden table + white envelope",
+  "Hand-held shot",
+  "Hand-held — alternate background",
+  "Themed tabletop",
+];
+
 const RECIPE_LABELS_BY_TYPE: Record<ProductType, string[]> = {
   card: RECIPE_LABELS,
   print: PRINT_RECIPE_LABELS,
   set2: SET2_RECIPE_LABELS,
   set3: SET3_RECIPE_LABELS,
   invite: INVITE_RECIPE_LABELS,
+  ticket: TICKET_RECIPE_LABELS,
 };
 
 function designCount(type: ProductType): number {
@@ -128,6 +138,7 @@ function designCount(type: ProductType): number {
 function defaultSize(type: ProductType): string {
   if (type === "card") return "A5";
   if (type === "invite") return "A6";
+  if (type === "ticket") return "210 x 99mm";
   return "A4";
 }
 
@@ -136,7 +147,7 @@ function defaultSize(type: ProductType): string {
 // are left blank for manual entry.
 function suggestedPrice(type: ProductType, f: Finish): string {
   if (type === "card") return "3.59";
-  if (type === "invite") return "";
+  if (type === "invite" || type === "ticket") return "";
   if (type === "print") {
     if (f === "framed") return "12.99";
     if (f === "unframed") return "6.99";
@@ -209,7 +220,12 @@ export default function CreateProductPage() {
     } catch {}
   }, [copy, images, productName]);
 
-  const sizes = productType === "card" || productType === "invite" ? CARD_SIZES : PRINT_SIZES;
+  const sizes =
+    productType === "ticket"
+      ? TICKET_SIZES
+      : productType === "card" || productType === "invite"
+      ? CARD_SIZES
+      : PRINT_SIZES;
   const recipeLabels = RECIPE_LABELS_BY_TYPE[productType];
 
   function handleFileChange(index: number, e: React.ChangeEvent<HTMLInputElement>) {
@@ -240,7 +256,7 @@ export default function CreateProductPage() {
     const count = designCount(type);
     setImageFiles(Array(count).fill(null));
     setImagePreviews(Array(count).fill(null));
-    setLandscapeFlags(Array(4).fill(type === "invite"));
+    setLandscapeFlags(Array(4).fill(type === "invite" || type === "ticket"));
   }
 
   function handleFinishChange(f: Finish) {

@@ -1,8 +1,8 @@
 // Product image and copy prompt builders for Create Product tool
 
-export type ProductType = "card" | "print" | "set2" | "set3" | "invite";
+export type ProductType = "card" | "print" | "set2" | "set3" | "invite" | "ticket";
 
-// Finish only applies to the print-family types (print, set2, set3) — cards/invites are always flat/folded, never framed.
+// Finish only applies to the print-family types (print, set2, set3) — cards/invites/tickets are always flat/folded, never framed.
 export type Finish = "framed" | "unframed" | "laminated";
 
 export const THEMES: Record<string, string> = {
@@ -68,6 +68,13 @@ const INVITE_RECIPES = [
   "RECIPE 2 — Flatlay with Envelope: Invite flat on a surface with a plain unbranded envelope beside it. Theme props allowed. Minimal, clean layout.",
   "RECIPE 3 — Hand-held Shot: Invite held flat and naturally by a neutral hand. Background blurred using room tones. Theme mood applied.",
   "RECIPE 4 — Stack / Desk Scene: A small neat stack of the invite positioned near desk or packaging styling. Theme cues allowed. Premium ecommerce feel.",
+];
+
+const TICKET_RECIPES = [
+  "RECIPE 1 — Flatlay on Wood with Envelope: Ticket laid flat on a light natural wooden table, sitting neatly on top of a plain white envelope. The envelope is the same size and shape as the ticket (a long DL-style envelope), lined up directly underneath it so just a sliver of white edge shows. Minimal, clean layout.",
+  "RECIPE 2 — Hand-held Shot: Ticket held naturally by a neutral hand, same style as our card hand-held shots. Background blurred using room tones. Theme mood applied.",
+  "RECIPE 3 — Hand-held Shot (Alternate Background): Ticket held naturally by a neutral hand against a clearly different background from a standard room — a softly blurred, theme-styled backdrop using the theme palette and props. Theme mood applied.",
+  "RECIPE 4 — Themed Tabletop: Ticket laid flat on a table surface styled with the chosen theme's background, palette and props around (never on) the ticket. Premium ecommerce feel.",
 ];
 
 // Per-recipe-index map of which uploaded design(s) a set recipe needs — "all" sends every
@@ -153,6 +160,16 @@ INVITE RULES — THESE ARE ABSOLUTE AND CANNOT BE BROKEN:
 - If an envelope is shown, it is always a plain white unbranded envelope placed beside the invite — never sealed around it or obscuring the design, never any colour other than white
 `.trim();
 
+const HARD_TICKET_RULES = `
+TICKET RULES — THESE ARE ABSOLUTE AND CANNOT BE BROKEN:
+- The ticket design shown in the reference image must be reproduced exactly as a physical flat ticket printed on card
+- Never alter the artwork, text, colours, fonts, layout, or alignment
+- The ticket is a single flat panel — it does NOT fold, has no spine, and has no perforations, tear-off stubs or holes unless they are in the reference design
+- Exact physical size: 210mm x 99mm (DL size) — a long, slim rectangle more than twice as wide as it is tall. Never render it as A-size, square, or card proportions
+- Show the full face of the ticket, fully visible — no cropping of any edge
+- If an envelope is shown, it is always a plain white unbranded DL envelope, the same size as the ticket — never any colour other than white
+`.trim();
+
 const HARD_SET_RULES = `
 SET RULES — THESE ARE ABSOLUTE AND CANNOT BE BROKEN:
 - Each reference image shows one distinct design belonging to the same matching set
@@ -175,6 +192,8 @@ function getRecipes(productType: ProductType): string[] {
       return SET3_RECIPES;
     case "invite":
       return INVITE_RECIPES;
+    case "ticket":
+      return TICKET_RECIPES;
     case "print":
     default:
       return PRINT_RECIPES;
@@ -187,6 +206,8 @@ function getProductRulesText(productType: ProductType, finish: Finish): string {
       return HARD_CARD_RULES;
     case "invite":
       return HARD_INVITE_RULES;
+    case "ticket":
+      return HARD_TICKET_RULES;
     case "set2":
     case "set3":
       return `${PRINT_RULES_BASE}\n\n${FINISH_RULES[finish]}\n\n${HARD_SET_RULES}`;
@@ -203,6 +224,7 @@ const SIZE_ASPECTS: Record<string, string> = {
   A3: "portrait rectangle — taller than wide, aspect ratio 1:1.41. NEVER square, NEVER landscape.",
   A2: "portrait rectangle — taller than wide, aspect ratio 1:1.41. NEVER square, NEVER landscape.",
   Square: "perfect square — equal width and height, aspect ratio 1:1. NEVER portrait, NEVER landscape.",
+  "210 x 99mm": "tall slim rectangle — 99mm wide x 210mm tall, aspect ratio 1:2.12 (more than twice as tall as wide). NEVER square, NEVER A-size proportions.",
 };
 
 const LANDSCAPE_ASPECTS: Record<string, string> = {
@@ -213,6 +235,7 @@ const LANDSCAPE_ASPECTS: Record<string, string> = {
   A2: "landscape rectangle — wider than tall, aspect ratio 1.41:1. NEVER portrait, NEVER square.",
   // A square has no orientation — the Landscape tick has no visual effect when Size is Square.
   Square: "perfect square — equal width and height, aspect ratio 1:1.",
+  "210 x 99mm": "long slim landscape rectangle — 210mm wide x 99mm tall, aspect ratio 2.12:1 (more than twice as wide as tall). NEVER square, NEVER A-size proportions.",
 };
 
 export function buildImagePrompt(
@@ -314,6 +337,15 @@ function buildProductDetails(productType: ProductType, size: string, finish: Fin
       "• Created, made and shipped from the UK",
     ].join("\n");
   }
+  if (productType === "ticket") {
+    return [
+      "Details:",
+      `• Size: ${size || "210 x 99mm"}`,
+      "• Printed on premium quality card stock",
+      "• Comes with a white envelope",
+      "• Created, made and shipped from the UK",
+    ].join("\n");
+  }
   if (productType === "set2" || productType === "set3") {
     const count = productType === "set2" ? "2" : "3";
     return [
@@ -342,6 +374,7 @@ const PRODUCT_TYPE_LABELS: Record<ProductType, string> = {
   set2: "set of 2 prints",
   set3: "set of 3 prints",
   invite: "invite",
+  ticket: "ticket",
 };
 
 export function buildCopyPrompt(
