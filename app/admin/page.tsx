@@ -66,7 +66,7 @@ const pacaTools: Tool[] = [
     icon: "💸",
   },
   {
-    title: "Margin Calculator",
+    title: "Calculator",
     description: "Profit and margin per platform with fees, sale prices, and reverse calculations.",
     href: "/admin/paca/margin-calculator",
     icon: "📊",

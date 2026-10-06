@@ -1,6 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { supabase } from "../../../lib/supabaseClient";
+
+type MaterialOption = { material_id: string; material_name: string; avg_cost: number | null };
 
 type PlatformFee = {
   id: string;
@@ -18,6 +21,31 @@ const DEFAULT_PLATFORMS: PlatformFee[] = [
   { id: "amazon",  name: "Amazon",      pct: "15.0", fixed: "0.00", feesOnShipping: false, active: true },
   { id: "ownsite", name: "Own Site",    pct: "1.8",  fixed: "0.20", feesOnShipping: false, active: true },
 ];
+
+type CostLine = {
+  id: string;
+  name: string;
+  mode: "each" | "pack"; // price per item, or a pack price spread across a quantity
+  price: string;         // price each, or the pack price
+  packQty: string;       // pack mode only — e.g. 100 for £9.99
+  uses: string;          // how many go into one product
+};
+
+function newCostLine(): CostLine {
+  return { id: uid(), name: "", mode: "each", price: "", packQty: "", uses: "1" };
+}
+
+// Cost one material adds to one finished product
+function lineCost(l: CostLine) {
+  const each = l.mode === "each" ? parse(l.price) : parse(l.packQty) > 0 ? parse(l.price) / parse(l.packQty) : 0;
+  const uses = l.uses === "" ? 1 : parse(l.uses);
+  return { each, total: each * uses };
+}
+
+// Small amounts read better in pence, keeping fractions of a penny
+function fmtUnit(n: number) {
+  return n < 1 ? `${parseFloat((n * 100).toFixed(2))}p` : fmt(n);
+}
 
 function uid() { return Math.random().toString(36).slice(2); }
 function parse(v: string) { return parseFloat(v) || 0; }
@@ -66,6 +94,23 @@ export default function MarginCalculator() {
   const [saleDiscount, setSaleDiscount] = useState("");
   const [targetMargin, setTargetMargin] = useState("");
   const [targetProfit, setTargetProfit] = useState("");
+  const [costLines, setCostLines] = useState<CostLine[]>([]);
+  const [materials, setMaterials] = useState<MaterialOption[]>([]);
+
+  // Raw materials from the Materials page, with their average cost per unit
+  useEffect(() => {
+    supabase.rpc("list_materials_summary", { p_search: null }).then(({ data }) => {
+      const rows = (data ?? []) as MaterialOption[];
+      setMaterials([...rows].sort((a, b) => a.material_name.localeCompare(b.material_name)));
+    });
+  }, []);
+
+  function addMaterialLine(materialId: string) {
+    const m = materials.find((x) => x.material_id === materialId);
+    if (!m) return;
+    const cost = m.avg_cost === null ? "" : String(Number(Number(m.avg_cost).toFixed(4)));
+    setCostLines((ls) => [...ls, { ...newCostLine(), name: m.material_name, price: cost }]);
+  }
 
   useEffect(() => {
     try {
@@ -73,6 +118,7 @@ export default function MarginCalculator() {
       if (saved) {
         const data = JSON.parse(saved);
         if (data.platforms) setPlatforms(data.platforms);
+        if (data.costLines) setCostLines(data.costLines);
         if (data.cogs) setCogs(data.cogs);
         if (data.sellPrice) setSellPrice(data.sellPrice);
         if (data.ourShipping) setOurShipping(data.ourShipping);
@@ -83,8 +129,13 @@ export default function MarginCalculator() {
   }, []);
 
   useEffect(() => {
-    if (loaded) localStorage.setItem(storageKey, JSON.stringify({ platforms, cogs, sellPrice, ourShipping, buyerShipping }));
-  }, [platforms, cogs, sellPrice, ourShipping, buyerShipping, loaded]);
+    if (loaded) localStorage.setItem(storageKey, JSON.stringify({ platforms, cogs, sellPrice, ourShipping, buyerShipping, costLines }));
+  }, [platforms, cogs, sellPrice, ourShipping, buyerShipping, costLines, loaded]);
+
+  function updateCostLine(id: string, patch: Partial<CostLine>) {
+    setCostLines((ls) => ls.map((l) => (l.id === id ? { ...l, ...patch } : l)));
+  }
+  const costingsTotal = costLines.reduce((sum, l) => sum + lineCost(l).total, 0);
 
   function addPlatform() {
     setPlatforms((p) => [...p, { id: uid(), name: "", pct: "", fixed: "", feesOnShipping: false, active: true }]);
@@ -152,6 +203,111 @@ export default function MarginCalculator() {
 
   return (
     <div className="flex flex-col gap-8">
+
+      {/* COGS costings */}
+      <div className="pp-card p-5">
+        <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500 mb-1">Work out COGS</h2>
+        <p className="text-xs text-slate-400 mb-4">
+          Add rough costs for each material — either the price each (e.g. 7p = 0.07) or a pack price (e.g. £9.99 for 100) — or pick from your existing materials. It works out the cost per product.
+        </p>
+
+        {costLines.length > 0 && (
+          <div className="flex flex-col gap-3 mb-4">
+            {costLines.map((l) => {
+              const { each, total } = lineCost(l);
+              return (
+                <div key={l.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white p-3">
+                  <input
+                    type="text"
+                    value={l.name}
+                    onChange={(e) => updateCostLine(l.id, { name: e.target.value })}
+                    placeholder="e.g. Envelope"
+                    className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-teal-400 focus:outline-none focus:ring-1 focus:ring-teal-300 flex-1 min-w-32"
+                  />
+
+                  <div className="flex rounded-lg border border-slate-200 overflow-hidden text-xs font-medium">
+                    {(["each", "pack"] as const).map((m) => (
+                      <button
+                        key={m}
+                        onClick={() => updateCostLine(l.id, { mode: m })}
+                        className={`px-2.5 py-1.5 transition ${l.mode === m ? "bg-teal-500 text-white" : "bg-slate-50 text-slate-500"}`}
+                      >
+                        {m === "each" ? "Price each" : "Pack price"}
+                      </button>
+                    ))}
+                  </div>
+
+                  <TInput value={l.price} onChange={(v) => updateCostLine(l.id, { price: v })} placeholder={l.mode === "each" ? "0.07" : "9.99"} type="number" prefix="£" className="w-24" />
+
+                  {l.mode === "pack" && (
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs text-slate-400">for</span>
+                      <TInput value={l.packQty} onChange={(v) => updateCostLine(l.id, { packQty: v })} placeholder="100" type="number" className="w-20" />
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-slate-400">×</span>
+                    <TInput value={l.uses} onChange={(v) => updateCostLine(l.id, { uses: v })} placeholder="1" type="number" className="w-16" />
+                    <span className="text-xs text-slate-400">per product</span>
+                  </div>
+
+                  <div className="ml-auto text-right text-xs text-slate-400 tabular-nums min-w-24">
+                    {l.mode === "pack" && each > 0 && <div>{fmtUnit(each)} each</div>}
+                    <div className="text-sm font-semibold text-slate-700">{fmtUnit(total)}</div>
+                  </div>
+
+                  <button
+                    onClick={() => setCostLines((ls) => ls.filter((x) => x.id !== l.id))}
+                    className="rounded-lg px-2 py-1.5 text-slate-400 hover:bg-red-50 hover:text-red-500 transition text-base leading-none"
+                  >
+                    ✕
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="flex flex-wrap items-center gap-3">
+          <button onClick={() => setCostLines((ls) => [...ls, newCostLine()])} className="pp-btn pp-btn-primary text-xs px-3 py-1.5">
+            + Add Cost
+          </button>
+          {materials.length > 0 && (
+            <select
+              value=""
+              onChange={(e) => addMaterialLine(e.target.value)}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 focus:border-teal-400 focus:outline-none focus:ring-1 focus:ring-teal-300"
+            >
+              <option value="">+ From my materials…</option>
+              {materials.map((m) => (
+                <option key={m.material_id} value={m.material_id}>
+                  {m.material_name}{m.avg_cost === null ? " (no cost yet)" : ` — ${fmtUnit(Number(m.avg_cost))} each`}
+                </option>
+              ))}
+            </select>
+          )}
+          {costLines.length > 0 && (
+            <>
+              <span className="text-sm text-slate-500">
+                Cost per product: <strong className="text-teal-700">{fmt(costingsTotal)}</strong>
+              </span>
+              <button
+                onClick={() => setCogs(costingsTotal.toFixed(2))}
+                className="rounded-lg border border-teal-200 bg-teal-50 px-3 py-1.5 text-xs font-semibold text-teal-700 hover:bg-teal-100 transition"
+              >
+                Use as COGS ↓
+              </button>
+              <button
+                onClick={() => setCostLines([])}
+                className="text-xs text-slate-400 hover:text-red-500 transition"
+              >
+                Clear all
+              </button>
+            </>
+          )}
+        </div>
+      </div>
 
       {/* Inputs */}
       <div className="pp-card p-5">
