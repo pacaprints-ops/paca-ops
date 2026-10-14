@@ -307,7 +307,7 @@ ${outputLine}
 }
 
 const FINISH_DETAIL_LINES: Record<Finish, string> = {
-  framed: "• Comes ready-framed in a neutral, modern thin frame",
+  framed: "• Available framed or as a print only — choose your option at checkout",
   unframed: "• Unframed — ready to frame yourselves or display your own way",
   laminated: "• Laminated finish — durable and wipe-clean, ready to use straight away",
 };
@@ -391,7 +391,7 @@ export function buildCopyPrompt(
   const isPrintFamily = productType === "print" || productType === "set2" || productType === "set3";
   const finishLabel = isPrintFamily
     ? finish === "framed"
-      ? "framed"
+      ? "available framed OR as a print only (the buyer chooses) — never say it 'comes framed' or imply a frame is always included"
       : finish === "laminated"
       ? "laminated (unframed), great for chore charts, checklists, or anywhere it needs to be wipeable"
       : "unframed"
