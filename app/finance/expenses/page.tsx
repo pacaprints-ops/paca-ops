@@ -92,7 +92,7 @@ function ModalShell({
         className="absolute inset-0 bg-black/40"
         onClick={onClose}
       />
-      <div className="relative w-full max-w-md rounded-xl border bg-white shadow-lg">
+      <div className="relative w-full max-w-md max-h-[90vh] overflow-y-auto rounded-xl border bg-white shadow-lg">
         <div className="flex items-center justify-between border-b px-4 py-3">
           <div className="text-sm font-semibold text-gray-900">{title}</div>
           <button
