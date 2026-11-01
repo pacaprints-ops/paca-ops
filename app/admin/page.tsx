@@ -54,12 +54,6 @@ const pacaTools: Tool[] = [
     icon: "🗂️",
   },
   {
-    title: "Reminders",
-    description: "Things to come back to — tick off as you go.",
-    href: "/admin/reminders",
-    icon: "📌",
-  },
-  {
     title: "Platform Costs",
     description: "Track monthly platform fees. Toggle platforms off to see what you'd save.",
     href: "/admin/paca/platform-costs",

@@ -210,17 +210,39 @@ export default function FinancePage() {
 
   const mileageClaimTotal = useMemo(() => {
     if (!settings) return 0;
-    return claimForMiles(totalMiles, settings);
-  }, [totalMiles, settings]);
+    // HMRC raised the first-10,000-miles rate from 45p to 55p from 6 April 2026
+    const rateFirst = taxYearStart >= 2026 ? 0.55 : settings.mileage_rate_first;
+    return claimForMiles(totalMiles, { ...settings, mileage_rate_first: rateFirst });
+  }, [totalMiles, settings, taxYearStart]);
 
   const gross = Number(ordersSummary.gross_revenue ?? 0) || 0;
   const fees = Number(ordersSummary.platform_fees ?? 0) || 0;
   const payout = Number(ordersSummary.payout ?? 0) || 0;
 
+  // Turnover is built from the money actually received, not the Gross column, which comes in
+  // low on TikTok orders where the platform funds a discount (£209.71 short in 2025-26).
+  const turnover = payout + fees;
+
   // YOUR TAX MODEL (no COGS subtraction here because stock/shipping are already in expenses)
   const profit = useMemo(() => {
-    return gross - fees - (expensesTotal + mileageClaimTotal);
-  }, [gross, fees, expensesTotal, mileageClaimTotal]);
+    return turnover - fees - (expensesTotal + mileageClaimTotal);
+  }, [turnover, fees, expensesTotal, mileageClaimTotal]);
+
+  const todayISO = new Date().toISOString().slice(0, 10);
+  const futureExpenses = useMemo(
+    () =>
+      expenses
+        .filter((e) => e.expense_date > todayISO)
+        .reduce((sum, e) => sum + Number(e.amount || 0), 0),
+    [expenses, todayISO]
+  );
+  const latestRealExpense = useMemo(
+    () =>
+      expenses
+        .filter((e) => e.expense_date <= todayISO && e.category !== "Home Office")
+        .reduce((max, e) => (e.expense_date > max ? e.expense_date : max), ""),
+    [expenses, todayISO]
+  );
 
   const taxPot = useMemo(() => {
     if (!settings) return null;
@@ -422,7 +444,7 @@ export default function FinancePage() {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <h2 className="text-lg font-semibold text-gray-900">Tax tracker</h2>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <div className="text-xs text-gray-600">Tax year</div>
                 <select
                   className="rounded-md border bg-white px-3 py-2 text-sm"
@@ -445,8 +467,9 @@ export default function FinancePage() {
 
             <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-5">
               <div className="rounded-md border bg-gray-50 px-3 py-2">
-                <div className="text-xs text-gray-600">Box 1 · Gross revenue</div>
-                <div className="text-sm font-semibold">{fmtGBP(gross)}</div>
+                <div className="text-xs text-gray-600">Box 1 · Turnover</div>
+                <div className="text-sm font-semibold">{fmtGBP(turnover)}</div>
+                <div className="text-[11px] text-gray-500">Payout + platform fees</div>
               </div>
 
               <div className="rounded-md border bg-gray-50 px-3 py-2">
@@ -468,7 +491,7 @@ export default function FinancePage() {
               </div>
 
               <div className="rounded-md border bg-gray-50 px-3 py-2">
-                <div className="text-xs text-gray-600">Box 5 · Est. tax owed</div>
+                <div className="text-xs text-gray-600">Box 5 · Tax pot (20% set aside)</div>
                 <div className="text-sm font-semibold">
                   {fmtGBP(taxPot?.estTaxTotal ?? 0)}
                 </div>
@@ -480,8 +503,19 @@ export default function FinancePage() {
 
             <div className="mt-3 text-xs text-gray-500">
               Payout (net received) for reference: <span className="font-semibold">{fmtGBP(payout)}</span>
-              {" "}· Profit excludes refunded orders.
+              {" "}· Gross column on orders: <span className="font-semibold">{fmtGBP(gross)}</span>
+              {" "}· Settled orders only, excluding refunded. Box 5 is a savings guide, not a tax bill: it
+              ignores personal allowances, National Insurance and other income.
             </div>
+
+            {futureExpenses > 0 || latestRealExpense ? (
+              <div className="mt-2 text-xs font-semibold text-amber-700">
+                {latestRealExpense ? `Last expense logged (excluding Home Office): ${fmtDate(latestRealExpense)}. ` : ""}
+                {futureExpenses > 0
+                  ? `Includes ${fmtGBP(futureExpenses)} of future-dated expenses, so profit reads low until those dates pass.`
+                  : ""}
+              </div>
+            ) : null}
           </section>
 
           {/* EXPENSES */}

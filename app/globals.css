@@ -140,6 +140,42 @@ body {
   background: rgba(184, 224, 210, 0.18);
 }
 
+.pp-table tfoot td {
+  @apply px-4 py-3 font-extrabold text-slate-900;
+  border-top: 2px solid rgba(0, 0, 0, 0.08);
+}
+
+/* highlighted row */
+.pp-table tbody tr.pp-row-current td {
+  @apply font-semibold;
+  background: rgba(184, 224, 210, 0.45);
+}
+
+/* first column stays put while a wide table scrolls; row tints are see-through,
+   so each is layered over white to stop scrolled cells showing behind it */
+.pp-table .pp-sticky-col {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: #fff;
+}
+
+.pp-table thead th.pp-sticky-col {
+  background: linear-gradient(var(--pp-teal-soft), var(--pp-teal-soft)), #fff;
+}
+
+.pp-table tbody tr:nth-child(even) td.pp-sticky-col {
+  background: linear-gradient(var(--pp-peach-soft), var(--pp-peach-soft)), #fff;
+}
+
+.pp-table tbody tr:hover td.pp-sticky-col {
+  background: linear-gradient(rgba(184, 224, 210, 0.18), rgba(184, 224, 210, 0.18)), #fff;
+}
+
+.pp-table tbody tr.pp-row-current td.pp-sticky-col {
+  background: linear-gradient(rgba(184, 224, 210, 0.45), rgba(184, 224, 210, 0.45)), #fff;
+}
+
 /* Pills */
 .pp-pill {
   @apply inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold;
