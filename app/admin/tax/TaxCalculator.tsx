@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from "react";
 import { supabase } from "../../lib/supabaseClient";
+import { taxPeriod } from "../../lib/taxPeriods";
 import { getOrMigrateUserData, setUserData } from "../../lib/userStore";
 
 // ── UK Tax Constants ───────────────────────────────────────────────
@@ -29,9 +30,6 @@ function divRates(taxYearStart: number) {
 // ── Helpers ────────────────────────────────────────────────────────
 function taxYearLabel(sy: number) {
   return `${sy}/${String(sy + 1).slice(2)}`;
-}
-function taxYearRange(sy: number) {
-  return { start: `${sy}-04-06`, endExclusive: `${sy + 1}-04-06` };
 }
 function getCurrentTaxYearStart() {
   const now = new Date();
@@ -190,24 +188,24 @@ export default function TaxCalculator({ person }: { person: "carrie" | "vicky" }
   // Load Paca profit for selected tax year
   useEffect(() => {
     setPacaLoading(true);
-    const range = taxYearRange(taxYearStart);
+    const range = taxPeriod(taxYearStart);
 
     async function load() {
       const [osRes, exRes, miRes, setRes] = await Promise.all([
         supabase.rpc("finance_orders_summary", {
-          p_from: range.start,
+          p_from: range.ordersFrom,
           p_to: range.endExclusive,
           p_platform: null,
           p_settled_only: true,
         }),
-        supabase.rpc("list_expenses_in_range", { p_from: range.start, p_to: range.endExclusive }),
-        supabase.rpc("list_mileage_in_range", { p_from: range.start, p_to: range.endExclusive }),
+        supabase.rpc("list_expenses_in_range", { p_from: range.expensesFrom, p_to: range.endExclusive }),
+        supabase.rpc("list_mileage_in_range", { p_from: range.expensesFrom, p_to: range.endExclusive }),
         supabase.rpc("get_finance_settings"),
       ]);
 
       const os = Array.isArray(osRes.data) ? osRes.data[0] : osRes.data;
-      const gross = Number(os?.gross_revenue ?? 0);
-      const fees = Number(os?.platform_fees ?? 0);
+      // Turnover = payout + fees (the gross column is low on TikTok-funded discounts and blank on some Etsy rows)
+      const payout = Number(os?.payout ?? 0);
       const expensesTotal = ((exRes.data ?? []) as any[]).reduce(
         (s: number, e: any) => s + Number(e.amount || 0), 0
       );
@@ -226,7 +224,7 @@ export default function TaxCalculator({ person }: { person: "carrie" | "vicky" }
       const mileageClaim =
         firstMiles * settings.mileage_rate_first + afterMiles * settings.mileage_rate_after;
 
-      setPacaProfit(gross - fees - expensesTotal - mileageClaim);
+      setPacaProfit(payout - expensesTotal - mileageClaim); // (payout + fees) turnover − fees
       setPacaLoading(false);
     }
 

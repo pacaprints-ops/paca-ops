@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { supabase } from "../lib/supabaseClient";
+import { taxPeriod, fmtDateUK as fmtUK } from "../lib/taxPeriods";
 
 type FinanceSettings = {
   owners_count: number;
@@ -74,14 +75,6 @@ function downloadCSV(filename: string, rows: any[][]) {
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
-}
-
-// UK tax year: 6 April -> 6 April (end exclusive)
-function getUKTaxYearRangeForYear(startYear: number) {
-  const start = new Date(Date.UTC(startYear, 3, 6));
-  const endExclusive = new Date(Date.UTC(startYear + 1, 3, 6));
-  const iso = (d: Date) => d.toISOString().slice(0, 10);
-  return { start: iso(start), endExclusive: iso(endExclusive) };
 }
 
 function getCurrentUKTaxYearStartYear(today = new Date()) {
@@ -159,7 +152,8 @@ export default function FinancePage() {
 
   const currentStartYear = useMemo(() => getCurrentUKTaxYearStartYear(new Date()), []);
   const [taxYearStart, setTaxYearStart] = useState<number>(currentStartYear);
-  const range = useMemo(() => getUKTaxYearRangeForYear(taxYearStart), [taxYearStart]);
+  // Shared period rules: first period starts 01/02/2025, with pre-trading costs from 01/01/2025
+  const range = useMemo(() => taxPeriod(taxYearStart), [taxYearStart]);
 
   const [settings, setSettings] = useState<FinanceSettings | null>(null);
 
@@ -281,7 +275,7 @@ export default function FinancePage() {
 
     // orders summary — settled only, so tax reflects money actually received
     const { data: oData, error: oErr } = await supabase.rpc("finance_orders_summary", {
-      p_from: range.start,
+      p_from: range.ordersFrom,
       p_to: range.endExclusive,
       p_platform: null,
       p_settled_only: true,
@@ -300,7 +294,7 @@ export default function FinancePage() {
 
     // expenses
     const { data: eData, error: eErr } = await supabase.rpc("list_expenses_in_range", {
-      p_from: range.start,
+      p_from: range.expensesFrom,
       p_to: range.endExclusive,
     });
     if (eErr) {
@@ -312,7 +306,7 @@ export default function FinancePage() {
 
     // mileage
     const { data: mData, error: mErr } = await supabase.rpc("list_mileage_in_range", {
-      p_from: range.start,
+      p_from: range.expensesFrom,
       p_to: range.endExclusive,
     });
     if (mErr) {
@@ -331,7 +325,7 @@ export default function FinancePage() {
       setLoading(false);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [range.start, range.endExclusive]);
+  }, [range.ordersFrom, range.expensesFrom, range.endExclusive]);
 
   function exportExpensesCSV() {
     const header = ["Date", "Amount", "Category", "Vendor", "Paid by", "Source", "Notes"];
@@ -420,6 +414,9 @@ export default function FinancePage() {
         </div>
 
         <div className="flex items-center gap-3">
+          <Link href="/finance/tax" className="text-sm font-semibold rounded-md border bg-gray-900 px-3 py-1.5 text-white">
+            Tax Year →
+          </Link>
           <Link href="/dashboard" className="text-sm text-gray-600 underline">
             Dashboard
           </Link>
@@ -461,7 +458,7 @@ export default function FinancePage() {
                   )}
                 </select>
                 <div className="text-xs text-gray-500">
-                  {range.start} → {range.endExclusive} (end excl.)
+                  {fmtUK(range.ordersFrom)} → {fmtUK(range.endInclusive)}
                 </div>
               </div>
             </div>

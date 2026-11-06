@@ -1,233 +1,253 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { getOrMigrateUserData, setUserData } from "../../../lib/userStore";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { supabase } from "../../../lib/supabaseClient";
+import { taxPeriod, tradingTaxYears, currentTaxYearStart, fmtDateUK } from "../../../lib/taxPeriods";
 
-type PaidBy = "Business" | "Carrie" | "Vicky" | "";
+/**
+ * Monthly running costs of the business — read straight from the Expenses log,
+ * so there's nothing to keep up to date here.
+ *
+ * Left out by default: costs already tied to orders (Postage & Packaging, Supplies/stock)
+ * and Home Office (an HMRC flat-rate allowance, not money paid out).
+ */
 
-type Platform = {
+type ExpenseRow = {
   id: string;
-  name: string;
-  cost: string;
-  active: boolean;
-  paidBy: PaidBy;
+  expense_date: string;
+  amount: number;
+  category: string;
+  vendor: string | null;
+  notes: string | null;
+  paid_by: string;
 };
 
-function uid() {
-  return Math.random().toString(36).slice(2);
-}
-function parse(v: string) {
-  return parseFloat(v) || 0;
-}
-function fmt(n: number) {
-  return `£${n.toFixed(2)}`;
-}
+const ORDER_LINKED = ["Postage & Packaging", "Supplies", "Home Office"];
 
-function TInput({
-  value,
-  onChange,
-  placeholder,
-  className = "",
-  type = "text",
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-  className?: string;
-  type?: string;
-}) {
-  return (
-    <input
-      type={type}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      className={`rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-teal-400 focus:outline-none focus:ring-1 focus:ring-teal-300 ${className}`}
-    />
-  );
-}
+const gbp = (v: number) =>
+  new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(v);
+const n = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+const monthLabel = (ym: string) =>
+  new Date(`${ym}-01T00:00:00`).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+const vendorName = (e: ExpenseRow) => (e.vendor?.trim() ? e.vendor.trim() : e.category);
+const titleCase = (s: string) => s.replace(/\b\w/g, (c) => c.toUpperCase());
 
 export default function PlatformCosts() {
-  const storageKey = "pp-platform-costs-v1";
-  const [platforms, setPlatforms] = useState<Platform[]>([]);
-  const [loaded, setLoaded] = useState(false);
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const years = useMemo(() => tradingTaxYears(), []);
+  const [startYear, setStartYear] = useState(currentTaxYearStart());
+  const period = useMemo(() => taxPeriod(startYear), [startYear]);
+  const [rows, setRows] = useState<ExpenseRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [open, setOpen] = useState<string | null>(null);
+  const [includeOrderLinked, setIncludeOrderLinked] = useState(false);
 
   useEffect(() => {
-    getOrMigrateUserData<Platform[]>(storageKey).then((saved) => {
-      if (saved) setPlatforms(saved);
-      setLoaded(true);
-    });
-  }, []);
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      setErrorMsg("");
+      const { data, error } = await supabase.rpc("list_expenses_in_range", {
+        p_from: period.expensesFrom,
+        p_to: period.endExclusive,
+      });
+      if (cancelled) return;
+      if (error) setErrorMsg(error.message);
+      setRows((data ?? []) as ExpenseRow[]);
+      setLoading(false);
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [period]);
 
-  useEffect(() => {
-    if (!loaded) return;
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => setUserData(storageKey, platforms), 600);
-  }, [platforms, loaded]);
+  const today = new Date().toISOString().slice(0, 10);
 
-  function add() {
-    setPlatforms((p) => [...p, { id: uid(), name: "", cost: "", active: true, paidBy: "" }]);
-  }
-  function update(id: string, field: keyof Platform, val: string | boolean) {
-    setPlatforms((p) => p.map((x) => (x.id === id ? { ...x, [field]: val } : x)));
-  }
-  function remove(id: string) {
-    setPlatforms((p) => p.filter((x) => x.id !== id));
-  }
+  const view = useMemo(() => {
+    const shown = rows.filter((e) => includeOrderLinked || !ORDER_LINKED.includes(e.category));
+    const past = shown.filter((e) => e.expense_date <= today);
 
-  const totalAll = platforms.reduce((s, p) => s + parse(p.cost), 0);
-  const totalActive = platforms.filter((p) => p.active).reduce((s, p) => s + parse(p.cost), 0);
-  const saving = totalAll - totalActive;
+    const byMonth = new Map<string, ExpenseRow[]>();
+    for (const e of shown) {
+      const k = e.expense_date.slice(0, 7);
+      byMonth.set(k, [...(byMonth.get(k) ?? []), e]);
+    }
+    const months = [...byMonth.entries()]
+      .sort((a, b) => b[0].localeCompare(a[0]))
+      .map(([ym, list]) => {
+        // group the month's lines by vendor so "Shopify" shows once with its total
+        const byVendor = new Map<string, { total: number; lines: ExpenseRow[]; category: string }>();
+        for (const e of list) {
+          const k = titleCase(vendorName(e).toLowerCase());
+          const v = byVendor.get(k) ?? { total: 0, lines: [], category: e.category };
+          v.total += n(e.amount);
+          v.lines.push(e);
+          byVendor.set(k, v);
+        }
+        return {
+          ym,
+          total: list.reduce((s, e) => s + n(e.amount), 0),
+          future: ym > today.slice(0, 7),
+          vendors: [...byVendor.entries()].sort((a, b) => b[1].total - a[1].total),
+        };
+      });
 
-  const byPayer = (["Business", "Carrie", "Vicky"] as const).map((payer) => ({
-    payer,
-    total: platforms.filter((p) => p.active && p.paidBy === payer).reduce((s, p) => s + parse(p.cost), 0),
-  })).filter((x) => x.total > 0);
+    const pastMonths = new Set(past.map((e) => e.expense_date.slice(0, 7)));
+    const pastTotal = past.reduce((s, e) => s + n(e.amount), 0);
 
-  if (!loaded) return null;
+    const byVendor = new Map<string, number>();
+    for (const e of past) {
+      const k = titleCase(vendorName(e).toLowerCase());
+      byVendor.set(k, (byVendor.get(k) ?? 0) + n(e.amount));
+    }
+
+    const byCategory = new Map<string, number>();
+    for (const e of past) byCategory.set(e.category, (byCategory.get(e.category) ?? 0) + n(e.amount));
+
+    return {
+      months,
+      pastTotal,
+      avg: pastMonths.size ? pastTotal / pastMonths.size : 0,
+      monthCount: pastMonths.size,
+      vendors: [...byVendor.entries()].sort((a, b) => b[1] - a[1]),
+      categories: [...byCategory.entries()].sort((a, b) => b[1] - a[1]),
+    };
+  }, [rows, includeOrderLinked, today]);
 
   return (
-    <div className="grid gap-6 lg:grid-cols-3">
-      {/* Platform list */}
-      <div className="lg:col-span-2">
-        <div className="pp-card p-5">
-          <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500 mb-4">
-            Monthly Platform Costs
-          </h2>
-
-          {platforms.length === 0 && (
-            <p className="text-sm text-slate-400 mb-4">No platforms added yet.</p>
-          )}
-
-          <div className="flex flex-col gap-3 mb-4">
-            {platforms.map((p) => (
-              <div
-                key={p.id}
-                className={`flex flex-wrap items-center gap-3 rounded-xl border p-3 transition ${
-                  p.active ? "border-slate-200 bg-white" : "border-slate-100 bg-slate-50 opacity-60"
-                }`}
-              >
-                {/* Toggle */}
-                <button
-                  onClick={() => update(p.id, "active", !p.active)}
-                  title={p.active ? "Disable" : "Enable"}
-                  className={`flex-shrink-0 w-9 h-5 rounded-full transition-colors relative ${
-                    p.active ? "bg-teal-500" : "bg-slate-300"
-                  }`}
-                >
-                  <span
-                    className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
-                      p.active ? "translate-x-4" : "translate-x-0.5"
-                    }`}
-                  />
-                </button>
-
-                <TInput
-                  value={p.name}
-                  onChange={(v) => update(p.id, "name", v)}
-                  placeholder="Platform name (e.g. Etsy, TikTok)"
-                  className="flex-1 min-w-0"
-                />
-                <div className="flex items-center gap-3 flex-wrap">
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">£</span>
-                    <input
-                      type="number"
-                      value={p.cost}
-                      onChange={(e) => update(p.id, "cost", e.target.value)}
-                      placeholder="0.00"
-                      className="rounded-lg border border-slate-200 bg-white pl-7 pr-3 py-1.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-teal-400 focus:outline-none focus:ring-1 focus:ring-teal-300 w-28"
-                    />
-                  </div>
-                  <select
-                    value={p.paidBy}
-                    onChange={(e) => update(p.id, "paidBy", e.target.value as PaidBy)}
-                    className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-900 focus:border-teal-400 focus:outline-none focus:ring-1 focus:ring-teal-300 w-28"
-                  >
-                    <option value="">Paid by…</option>
-                    <option value="Business">Business</option>
-                    <option value="Carrie">Carrie</option>
-                    <option value="Vicky">Vicky</option>
-                  </select>
-                  <button
-                    onClick={() => remove(p.id)}
-                    className="rounded-lg px-2 py-1.5 text-slate-400 hover:bg-red-50 hover:text-red-500 transition text-base leading-none"
-                  >
-                    ✕
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <button onClick={add} className="pp-btn pp-btn-primary text-xs px-3 py-1.5">
-            + Add Platform
-          </button>
-        </div>
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center gap-3">
+        <select className="pp-select" value={startYear} onChange={(e) => setStartYear(Number(e.target.value))}>
+          {years.map((y) => (
+            <option key={y} value={y}>
+              Tax year {taxPeriod(y).label}
+            </option>
+          ))}
+        </select>
+        <label className="flex items-center gap-2 text-sm text-slate-600">
+          <input
+            type="checkbox"
+            checked={includeOrderLinked}
+            onChange={(e) => setIncludeOrderLinked(e.target.checked)}
+          />
+          Include postage, stock and home office
+        </label>
+        <Link href="/finance/expenses" className="text-sm text-slate-600 underline">
+          Add or edit in Expenses
+        </Link>
       </div>
 
-      {/* Summary */}
-      <div>
-        <div className="pp-card-strong p-5 sticky top-24 flex flex-col gap-4">
-          <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">Summary</h2>
+      {errorMsg ? <div className="rounded-lg border bg-red-50 p-3 text-sm text-red-700">{errorMsg}</div> : null}
 
-          <div className="flex flex-col gap-2">
-            {platforms.map((p) => (
-              <div key={p.id} className={`flex justify-between text-sm gap-2 ${!p.active ? "line-through text-slate-400" : ""}`}>
-                <span className="truncate max-w-32 text-slate-600">{p.name || "—"}</span>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  {p.paidBy && (
-                    <span className="text-xs rounded-full px-2 py-0.5 bg-slate-100 text-slate-500">{p.paidBy}</span>
-                  )}
-                  <span className="tabular-nums text-slate-800">{fmt(parse(p.cost))}</span>
+      {loading ? (
+        <div className="text-sm text-slate-600">Loading…</div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="pp-card-strong">
+              <div className="pp-stat">
+                <div className="pp-stat-label">Spent so far this year</div>
+                <div className="pp-stat-value">{gbp(view.pastTotal)}</div>
+                <div className="text-xs text-slate-500">{view.monthCount} months with costs</div>
+              </div>
+            </div>
+            <div className="pp-card">
+              <div className="pp-stat">
+                <div className="pp-stat-label">Average a month</div>
+                <div className="pp-stat-value">{gbp(view.avg)}</div>
+                <div className="text-xs text-slate-500">What the business needs to cover</div>
+              </div>
+            </div>
+            <div className="pp-card">
+              <div className="pp-stat">
+                <div className="pp-stat-label">Biggest cost</div>
+                <div className="pp-stat-value text-lg">{view.vendors[0]?.[0] ?? "—"}</div>
+                <div className="text-xs text-slate-500">
+                  {view.vendors[0] ? `${gbp(view.vendors[0][1])} this year` : ""}
                 </div>
               </div>
-            ))}
+            </div>
           </div>
 
-          {platforms.length > 0 && (
-            <>
-              <div className="border-t border-slate-200 pt-3 flex flex-col gap-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-600">Total (all)</span>
-                  <span className="tabular-nums font-semibold text-slate-700">{fmt(totalAll)}</span>
-                </div>
-                <div
-                  className="flex items-center justify-between rounded-xl px-3 py-3"
-                  style={{ background: "var(--pp-teal-soft)", border: "1px solid var(--pp-teal-border)" }}
-                >
-                  <span className="text-sm font-bold text-slate-700">Active total</span>
-                  <span className="text-xl font-extrabold tabular-nums text-teal-700">{fmt(totalActive)}</span>
-                </div>
-
-                {saving > 0 && (
-                  <div className="flex justify-between text-sm rounded-xl px-3 py-2 bg-emerald-50 border border-emerald-100">
-                    <span className="text-emerald-700 font-medium">You&apos;d save</span>
-                    <span className="tabular-nums font-bold text-emerald-600">{fmt(saving)}/mo</span>
-                  </div>
-                )}
-
-                {byPayer.length > 0 && (
-                  <div className="flex flex-col gap-1 pt-2 border-t border-slate-100">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-1">By payer</p>
-                    {byPayer.map(({ payer, total }) => (
-                      <div key={payer} className="flex justify-between text-sm">
-                        <span className="text-slate-600">{payer}</span>
-                        <span className="tabular-nums font-semibold text-slate-700">{fmt(total)}</span>
+          <div className="grid gap-6 lg:grid-cols-3">
+            <section className="pp-card p-5 lg:col-span-2">
+              <h2 className="text-base font-extrabold text-slate-900">Month by month</h2>
+              <p className="text-xs text-slate-500">Tap a month to see what it was spent on.</p>
+              <div className="mt-3 divide-y rounded-lg border">
+                {view.months.length === 0 ? (
+                  <div className="p-3 text-sm text-slate-600">No business costs in this tax year.</div>
+                ) : null}
+                {view.months.map((m) => (
+                  <div key={m.ym}>
+                    <button
+                      type="button"
+                      onClick={() => setOpen(open === m.ym ? null : m.ym)}
+                      className="flex w-full items-center justify-between px-3 py-2.5 text-left text-sm hover:bg-slate-50"
+                    >
+                      <span className="font-semibold text-slate-900">
+                        <span className="text-slate-400">{open === m.ym ? "▾" : "▸"}</span> {monthLabel(m.ym)}
+                        {m.future ? <span className="ml-2 text-xs font-normal text-amber-700">upcoming</span> : null}
+                      </span>
+                      <span className="font-extrabold">{gbp(m.total)}</span>
+                    </button>
+                    {open === m.ym ? (
+                      <div className="bg-slate-50 px-3 pb-3">
+                        {m.vendors.map(([vendor, v]) => (
+                          <div key={vendor} className="border-b border-slate-200 py-1.5 last:border-b-0">
+                            <div className="flex justify-between text-sm">
+                              <span>
+                                {vendor} <span className="text-xs text-slate-400">· {v.category}</span>
+                              </span>
+                              <span className="font-semibold">{gbp(v.total)}</span>
+                            </div>
+                            {v.lines.length > 1 || v.lines[0].notes ? (
+                              <div className="mt-0.5 space-y-0.5">
+                                {v.lines.map((e) => (
+                                  <div key={e.id} className="flex justify-between text-xs text-slate-500">
+                                    <span>
+                                      {fmtDateUK(e.expense_date)}
+                                      {e.notes ? ` · ${e.notes}` : ""}
+                                      {e.paid_by !== "Business" ? ` · paid by ${e.paid_by}` : ""}
+                                    </span>
+                                    <span>{gbp(n(e.amount))}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : null}
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    ) : null}
                   </div>
-                )}
+                ))}
               </div>
+            </section>
 
-              <p className="text-xs text-slate-400">
-                Toggle platforms off to see what your total would look like without them.
-              </p>
-            </>
-          )}
-        </div>
-      </div>
+            <section className="pp-card p-5">
+              <h2 className="text-base font-extrabold text-slate-900">This year by supplier</h2>
+              <div className="mt-3 space-y-1 text-sm">
+                {view.vendors.map(([v, total]) => (
+                  <div key={v} className="flex justify-between">
+                    <span>{v}</span>
+                    <span className="font-semibold">{gbp(total)}</span>
+                  </div>
+                ))}
+              </div>
+              <h2 className="mt-6 text-base font-extrabold text-slate-900">By category</h2>
+              <div className="mt-3 space-y-1 text-sm">
+                {view.categories.map(([c, total]) => (
+                  <div key={c} className="flex justify-between">
+                    <span>{c}</span>
+                    <span className="font-semibold">{gbp(total)}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
+        </>
+      )}
     </div>
   );
 }

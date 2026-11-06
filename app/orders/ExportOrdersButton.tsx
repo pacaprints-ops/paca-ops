@@ -94,31 +94,12 @@ export default function ExportOrdersButton({
       ];
     });
 
-    // Totals row (non-refunded only)
-    const nonRefunded = rows.filter((o) => !o.is_refunded);
-    const totals = [
-      "TOTAL (excl. refunded)",
-      "",
-      "",
-      "",
-      "",
-      "",
-      nonRefunded.reduce((s, o) => s + toN(o.gross_revenue), 0).toFixed(2),
-      nonRefunded.reduce((s, o) => s + toN(o.platform_fees), 0).toFixed(2),
-      nonRefunded.reduce((s, o) => s + toN(o.revenue), 0).toFixed(2),
-      nonRefunded.reduce((s, o) => s + toN(o.shipping_cost), 0).toFixed(2),
-      nonRefunded.reduce((s, o) => s + toN(o.cogs_override ?? o.total_cost), 0).toFixed(2),
-      nonRefunded.reduce((s, o) => {
-        const p = toN(o.revenue);
-        const sh = toN(o.shipping_cost);
-        const c = toN(o.cogs_override ?? o.total_cost);
-        return s + (p - sh - c);
-      }, 0).toFixed(2),
-      "",
-    ];
+    // No totals row: re-imports and spreadsheet SUMs would count it twice
+    // (2024-25 check: £696.10 instead of £348.05). Use SUM in the spreadsheet,
+    // or the Tax Year page export for tax totals.
 
     const suffix = from && to ? `_${from}_to_${to}` : `_${new Date().toISOString().slice(0, 10)}`;
-    downloadCSV(`orders${suffix}.csv`, [header, ...lines, totals]);
+    downloadCSV(`orders${suffix}.csv`, [header, ...lines]);
   }
 
   return (

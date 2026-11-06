@@ -54,8 +54,8 @@ const pacaTools: Tool[] = [
     icon: "🗂️",
   },
   {
-    title: "Platform Costs",
-    description: "Track monthly platform fees. Toggle platforms off to see what you'd save.",
+    title: "Business Costs",
+    description: "Monthly running costs from Expenses (Shopify, Claude, ads…). Tap a month for the split.",
     href: "/admin/paca/platform-costs",
     icon: "💸",
   },
