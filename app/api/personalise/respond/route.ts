@@ -1,10 +1,13 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { Resend } from "resend";
 import { supabase } from "../../../lib/supabaseClient";
 import { escapeHtml } from "../../../lib/escapeHtml";
+import { makePortraitFolder } from "../../../lib/portraitFolder";
 import { portraitText, validMember, type PortraitSubmission } from "../../../personalise/portrait/catalog";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
+export const maxDuration = 120;
+
 const NOTIFY_EMAIL = "hello@pacaprints.com";
 
 export async function POST(request: NextRequest) {
@@ -14,7 +17,7 @@ export async function POST(request: NextRequest) {
 
   const { data: req, error: findError } = await supabase
     .from("personalisation_requests")
-    .select("order_ref, customer_email, kind, size_label, max_people, status")
+    .select("id, order_ref, customer_email, kind, size_label, max_people, status")
     .eq("token", token)
     .single();
 
@@ -74,10 +77,13 @@ export async function POST(request: NextRequest) {
         <p><strong>Customer:</strong> ${escapeHtml(req.customer_email)}</p>
         <p><strong>Their details:</strong></p>
         <div style="background:#f0f9f6;border-radius:8px;padding:16px;white-space:pre-wrap;font-size:14px;color:#333;">${escapeHtml(responseText)}</div>
-        ${portrait ? `<p style="color:#555;font-size:14px;">Exact files for each person are on the Personalisation page in paca-ops.</p>` : ""}
+        ${portrait ? `<p style="color:#555;font-size:14px;">Exact files for each person are on the Personalisation page in paca-ops, and a Drive folder with copies of them is being made in "Portrait orders".</p>` : ""}
       </div>
     `,
   });
+
+  // Copy the exact design files into a Drive folder after replying, so the customer isn't kept waiting.
+  if (portrait) after(() => makePortraitFolder(req.id).then(() => undefined));
 
   return NextResponse.json({ success: true });
 }

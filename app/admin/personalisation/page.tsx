@@ -1,9 +1,9 @@
 import { Fragment } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import PersonalisationClient from "./PersonalisationClient";
+import PortraitFolderButton from "./PortraitFolderButton";
 import { resolve, thumb, type PortraitSubmission } from "../../personalise/portrait/catalog";
 
-const DRIVE_FOLDER = "https://drive.google.com/drive/folders/12nH9wanF1fMgQehh-vxHKQAfGlQgkczM";
 
 function PortraitFiles({ r }: { r: PersonalisationRequest }) {
   if (!r.portrait) return null;
@@ -13,9 +13,8 @@ function PortraitFiles({ r }: { r: PersonalisationRequest }) {
       <div className="text-sm text-gray-700">
         {r.portrait.title && <>Title: <b>{r.portrait.title}</b> · </>}
         {people.length} people &amp; pets{r.size_label && <> (paid for {r.size_label})</>}
-        {" · "}
-        <a href={DRIVE_FOLDER} target="_blank" rel="noreferrer" className="underline">Open designs in Drive</a>
       </div>
+      <PortraitFolderButton id={r.id} url={r.portrait.driveFolderUrl} />
       {r.portrait.notes && <p className="rounded bg-amber-50 px-3 py-2 text-sm text-gray-800">Notes: {r.portrait.notes}</p>}
       <ol className="flex flex-col gap-2">
         {people.map((p) => (
@@ -59,7 +58,7 @@ type PersonalisationRequest = {
   responded_at: string | null;
   kind: string | null;
   size_label: string | null;
-  portrait: PortraitSubmission | null;
+  portrait: (PortraitSubmission & { driveFolderUrl?: string }) | null;
 };
 
 function formatDateTimeUK(iso: string | null) {
