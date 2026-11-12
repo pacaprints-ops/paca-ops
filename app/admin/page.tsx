@@ -15,12 +15,6 @@ const operationsTools: Tool[] = [
     icon: "✉️",
   },
   {
-    title: "Portrait Lookup",
-    description: "Look up portrait orders and details.",
-    href: "/portrait-lookup",
-    icon: "🖼️",
-  },
-  {
     title: "Create Product",
     description: "Build and push a new product to Shopify.",
     href: "/create-product",
