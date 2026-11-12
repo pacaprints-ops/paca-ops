@@ -57,8 +57,9 @@ const people = {
   Man: {
     hair: hair.Man,
     tops: [
-      ...codes(`${DAD}/TShirt`, ["T1", "T2", "T3", "T9", "T14", "T23"], "T-shirt", { kind: "T-shirt" }),
-      ...codes(`${DAD}/Hoodie`, ["H1", "H3", "H8", "H13", "H23", "H30"], "Hoodie", { kind: "Hoodie" }),
+      // T2 and H30 taken off after the picture check (2026-11-12)
+      ...codes(`${DAD}/TShirt`, ["T1", "T3", "T9", "T14", "T23"], "T-shirt", { kind: "T-shirt" }),
+      ...codes(`${DAD}/Hoodie`, ["H1", "H3", "H8", "H13", "H23"], "Hoodie", { kind: "Hoodie" }),
     ],
     bottoms: codes(`${DAD}/Jeans`, ["J2", "J5", "J19"], "Jeans", { kind: "Jeans" }),
     dresses: [],
@@ -76,7 +77,8 @@ const people = {
   Girl: {
     hair: hair.Girl,
     tops: codes(`${GIRL}/Body and specific body clothes/TshirtForBodyAandD`, ["T1", "T2", "T3", "T4", "T5", "T6", "T7"], "T-shirt", { kind: "T-shirt" }),
-    bottoms: codes(`${GIRL}/Jeans`, ["J3", "J11", "J15", "J17"], "Jeans", { kind: "Jeans" }),
+    // J15 taken off after the picture check (2026-11-12)
+    bottoms: codes(`${GIRL}/Jeans`, ["J3", "J11", "J17"], "Jeans", { kind: "Jeans" }),
     dresses: codes(`${GIRL}/Dress`, ["D1", "D2", "D4", "D6", "D8", "D9"], "Dress", { kind: "Dress" }),
     ribbons: RIBBONS,
   },
