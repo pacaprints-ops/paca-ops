@@ -29,7 +29,8 @@ export async function makePortraitFolder(requestId: string): Promise<PortraitFol
     : resolve(portrait as PortraitSubmission).flatMap((p) => {
         const who = safe(p.who);
         return p.parts.map((part) => ({
-          path: part.file,
+          // Portrait designs live in "All family designs/Family portrait/" (moved 2026-11-12)
+          path: `Family portrait/${part.file}`,
           name: `${p.position} ${who} - ${part.part}${part.code ? ` ${part.code}` : ""}.png`,
         }));
       });
