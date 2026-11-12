@@ -70,9 +70,14 @@ function findByPath(root, path, cache) {
   const files = folder.getFiles();
   while (files.hasNext()) {
     const f = files.next();
-    if (f.getName().trim() === fileName) return f;
+    if (norm(f.getName()) === norm(fileName)) return f;
   }
   return null;
+}
+
+// Drive names some files without ".png" and with different capitals than the downloaded copies.
+function norm(name) {
+  return name.trim().replace(/\.png$/i, "").trim().toLowerCase();
 }
 
 function childFolder(folder, name) {
