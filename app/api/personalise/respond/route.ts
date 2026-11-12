@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     portrait = {
       title: String(sub?.title ?? "").slice(0, 60).trim() || undefined,
       notes: String(sub?.notes ?? "").slice(0, 1000).trim() || undefined,
-      members: members.map((m) => ({ ...m, name: m.name ? String(m.name).slice(0, 40) : undefined })),
+      members: members.map((m) => ({ ...m, name: undefined, age: m.age == null ? undefined : Number(m.age) })),
     };
     responseText = portraitText(portrait, req.size_label);
   } else {

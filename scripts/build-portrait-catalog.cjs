@@ -50,6 +50,10 @@ const DAD = "Dad/Clothes", MUM = "Mum/Sets", BOY = "Kids/Boy/Cloths", GIRL = "Ki
 const MUM_D = "Mum/Sets/Body D use this/TShirtForBodyD";
 const MUM_C_SCP = "Family Scp design/women/tshirts/tshirt for arm out";
 
+// Girl hair ribbons R1–R14 — also offered to babies as an optional bow
+const RIBBONS = Array.from({ length: 14 }, (_, i) =>
+  item(`Family Scp design/girl/ribbon/r${i + 1}.png`, { code: `R${i + 1}`, label: `Ribbon R${i + 1}`, kind: "Ribbon" }));
+
 const people = {
   Man: {
     hair: hair.Man,
@@ -80,8 +84,7 @@ const people = {
     tops: codes(`${GIRL}/Body and specific body clothes/TshirtForBodyAandD`, ["T1", "T2", "T3", "T4", "T5", "T6", "T7"], "T-shirt", { kind: "T-shirt" }),
     bottoms: codes(`${GIRL}/Jeans`, ["J3", "J11", "J15", "J17"], "Jeans", { kind: "Jeans" }),
     dresses: codes(`${GIRL}/Dress`, ["D1", "D2", "D4", "D6", "D8", "D9"], "Dress", { kind: "Dress" }),
-    ribbons: Array.from({ length: 14 }, (_, i) =>
-      item(`Family Scp design/girl/ribbon/r${i + 1}.png`, { code: `R${i + 1}`, label: `Ribbon R${i + 1}`, kind: "Ribbon" })),
+    ribbons: RIBBONS,
   },
   Boy: {
     hair: hair.Boy,
@@ -102,6 +105,7 @@ const people = {
     tops: codes(`${BABY}/OnePiece`, ["P1", "P2", "P3", "P4", "P5", "P6", "P7", "P8"], "Babygrow", { kind: "Babygrow" }),
     bottoms: [],
     dresses: [],
+    ribbons: RIBBONS, // optional bow — same ribbon files as the girls
   },
 };
 

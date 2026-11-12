@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  catalog, HAIR_COLOURS, HUMANS, PETS, isPet, missingParts, optionById, thumb,
+  catalog, CHILD_AGES, HAIR_COLOURS, HUMANS, PETS, isChild, isPet, missingParts, optionById, thumb,
   type Member, type MemberType, type Option,
 } from "./catalog";
 
@@ -10,7 +10,7 @@ const TYPE_LABEL: Record<MemberType, string> = {
   Man: "Man", Woman: "Woman", Boy: "Boy", Girl: "Girl", Baby: "Baby", Dog: "Dog", Cat: "Cat",
 };
 const TYPE_HINT: Record<MemberType, string> = {
-  Man: "Adult", Woman: "Adult", Boy: "Child", Girl: "Child", Baby: "Under 2", Dog: "Pet", Cat: "Pet",
+  Man: "Adult (14+)", Woman: "Adult (14+)", Boy: "Child (2–14)", Girl: "Child (2–14)", Baby: "Under 2", Dog: "Pet", Cat: "Pet",
 };
 const SWATCH = Object.fromEntries(HAIR_COLOURS);
 
@@ -191,7 +191,7 @@ export default function PortraitForm({ token, orderRef, note, sizeLabel, minPeop
         </label>
         <label className="flex flex-col gap-1">
           <span className="text-sm font-semibold text-[var(--pp-ink)]">Anything else we should know?</span>
-          <span className="text-xs text-gray-500">Optional. For example: Dad wears glasses</span>
+          <span className="text-xs text-gray-500">Optional. For example: the boy aged 10 is taller than the boy aged 12</span>
           <textarea
             id="portrait-notes"
             value={notes}
@@ -250,8 +250,8 @@ function MemberCard({ member, position, onEdit, onRemove, onUp, onDown }: {
       </div>
       <div className="min-w-0 flex-1">
         <div className="font-semibold text-[var(--pp-ink)]">
-          {member.name || TYPE_LABEL[member.type]}
-          {member.name && <span className="ml-1 text-sm font-normal text-gray-500">({TYPE_LABEL[member.type]})</span>}
+          {TYPE_LABEL[member.type]}
+          {isChild(member.type) && member.age && <span className="ml-1 font-normal text-gray-600">aged {member.age}</span>}
         </div>
         <div className="truncate text-xs text-gray-500">{desc}</div>
       </div>
@@ -296,17 +296,21 @@ function MemberEditor({ initial, isNew, onCancel, onSave }: {
         <button type="button" onClick={onCancel} className="text-sm text-gray-600 underline">Back to family</button>
       </header>
 
-      <label className="flex flex-col gap-1">
-        <span className="text-sm font-semibold text-[var(--pp-ink)]">Name</span>
-        <span className="text-xs text-gray-500">Optional, just so we know who&apos;s who. For example: Dad, Lily, Biscuit</span>
-        <input
-          id="member-name"
-          value={m.name ?? ""}
-          maxLength={40}
-          onChange={(e) => set({ name: e.target.value })}
-          className="rounded-lg border border-gray-300 px-3 py-2 text-base"
-        />
-      </label>
+      {isChild(m.type) && (
+        <label className="flex flex-col gap-1">
+          <span className="text-sm font-semibold text-[var(--pp-ink)]">How old?</span>
+          <span className="text-xs text-gray-500">We use this to get each child&apos;s size right on the print.</span>
+          <select
+            id="member-age"
+            value={m.age ?? ""}
+            onChange={(e) => set({ age: e.target.value ? Number(e.target.value) : undefined })}
+            className="self-start rounded-lg border border-gray-300 bg-white px-3 py-2 text-base"
+          >
+            <option value="">Choose age</option>
+            {CHILD_AGES.map((a) => <option key={a} value={a}>{a} years old</option>)}
+          </select>
+        </label>
+      )}
 
       {isPet(m.type) ? <PetPicker type={m.type} value={m.pet} onChange={(pet) => set({ pet })} /> : <PersonPicker m={m} set={set} />}
 
@@ -447,7 +451,7 @@ function PersonPicker({ m, set }: { m: Member; set: (p: Partial<Member>) => void
       )}
 
       {opts.ribbons && opts.ribbons.length > 0 && (
-        <Step n={n++} title="Hair ribbon" hint="Optional">
+        <Step n={n++} title={m.type === "Baby" ? "Add a bow? (optional)" : "Hair ribbon (optional)"} hint="Optional, you can leave this as it is.">
           <div className="flex flex-col gap-2">
             <button
               type="button"
@@ -455,7 +459,7 @@ function PersonPicker({ m, set }: { m: Member; set: (p: Partial<Member>) => void
               onClick={() => set({ ribbon: undefined })}
               className={`self-start rounded-full border px-4 py-2 text-sm ${!m.ribbon ? "border-[var(--pp-ink)] bg-[var(--pp-teal-soft)] font-semibold" : "border-gray-300 bg-white"}`}
             >
-              No ribbon
+              {m.type === "Baby" ? "No bow" : "No ribbon"}
             </button>
             <TileGrid options={opts.ribbons} value={m.ribbon} onPick={(id) => set({ ribbon: id })} caption={(o) => o.code ?? ""} />
           </div>

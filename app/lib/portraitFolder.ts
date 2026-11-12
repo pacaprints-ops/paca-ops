@@ -20,7 +20,7 @@ export async function makePortraitFolder(requestId: string): Promise<PortraitFol
   const portrait = req.portrait as PortraitSubmission & { driveFolderUrl?: string };
   const safe = (s: string) => s.replace(/[\\/:*?"<>|]/g, "").trim();
   const files = resolve(portrait).flatMap((p) => {
-    const who = safe(p.name || p.type);
+    const who = safe(p.who);
     return p.parts.map((part) => ({
       path: part.file,
       name: `${p.position} ${who} - ${part.part}${part.code ? ` ${part.code}` : ""}.png`,

@@ -31,6 +31,9 @@ export const HUMANS: HumanType[] = ["Man", "Woman", "Boy", "Girl", "Baby"];
 export const PETS: PetType[] = ["Dog", "Cat"];
 export const isPet = (t: MemberType): t is PetType => t === "Dog" || t === "Cat";
 export const isAdult = (t: MemberType) => t === "Man" || t === "Woman";
+export const isChild = (t: MemberType) => t === "Boy" || t === "Girl";
+// Children's ages (used to size each child on the print)
+export const CHILD_AGES = Array.from({ length: 13 }, (_, i) => i + 2); // 2–14
 
 // Hair colour names in the order customers see them, with a swatch colour
 export const HAIR_COLOURS: [string, string][] = [
@@ -52,7 +55,8 @@ export const thumb = (o: { id: string }) => `/portrait/${o.id}.webp`;
 // What the customer picked for one person or pet (ids point into the catalog)
 export type Member = {
   type: MemberType;
-  name?: string;
+  age?: number; // boys & girls only
+  name?: string; // older submissions only — no longer asked
   skin?: string; // S1–S4
   hair?: string;
   outfit?: "separates" | "dress";
@@ -77,6 +81,7 @@ export function missingParts(m: Member): string[] {
   if (isPet(m.type)) return m.pet ? [] : ["breed and colour"];
   const p = catalog.people[m.type];
   const miss: string[] = [];
+  if (isChild(m.type) && !CHILD_AGES.includes(m.age as number)) miss.push("age");
   if (!m.skin) miss.push("skin tone");
   if (!m.hair) miss.push("hair");
   if (m.type === "Baby") { if (!m.top) miss.push("babygrow"); return miss; }
@@ -99,7 +104,7 @@ export function validMember(m: Member): boolean {
 }
 
 export type ResolvedPart = { part: string; label: string; code?: string; file: string; thumbId?: string };
-export type ResolvedMember = { position: number; type: MemberType; name?: string; summary: string; parts: ResolvedPart[] };
+export type ResolvedMember = { position: number; type: MemberType; age?: number; name?: string; who: string; summary: string; parts: ResolvedPart[] };
 
 /** Turn picks into exact Drive files. Position matters: the 1st adult uses the arm-out pose. */
 export function resolve(sub: PortraitSubmission): ResolvedMember[] {
@@ -125,17 +130,20 @@ export function resolve(sub: PortraitSubmission): ResolvedMember[] {
         add("Top", top, first && top?.fileArmOut ? top.fileArmOut : undefined);
         add("Bottoms", optionById(m.bottom));
       }
-      add("Ribbon", optionById(m.ribbon));
+      add(m.type === "Baby" ? "Bow" : "Ribbon", optionById(m.ribbon));
     }
     const summary = parts.filter((p) => p.part !== "Body").map((p) => p.code ? `${p.part} ${p.code}` : p.label).join(", ");
-    return { position: i + 1, type: m.type, name: m.name?.trim() || undefined, summary, parts };
+    const age = isChild(m.type) ? m.age : undefined;
+    const name = m.name?.trim() || undefined;
+    const who = `${m.type}${age ? ` aged ${age}` : ""}${name ? ` (${name})` : ""}`;
+    return { position: i + 1, type: m.type, age, name, who, summary, parts };
   });
 }
 
 /** Plain-text version for the log and the notification email. */
 export function portraitText(sub: PortraitSubmission, sizeLabel?: string | null): string {
   const lines = resolve(sub).map((r) =>
-    `${r.position}. ${r.type}${r.name ? ` (${r.name})` : ""}: ${r.parts.map((p) => p.code ? `${p.part} ${p.code}` : `${p.part}: ${p.label}`).join(", ")}`);
+    `${r.position}. ${r.who}: ${r.parts.map((p) => p.code ? `${p.part} ${p.code}` : `${p.part}: ${p.label}`).join(", ")}`);
   return [
     sub.title ? `Title: ${sub.title}` : null,
     `People & pets: ${sub.members.length}${sizeLabel ? ` (paid for ${sizeLabel})` : ""}`,

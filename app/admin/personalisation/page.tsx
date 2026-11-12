@@ -20,7 +20,7 @@ function PortraitFiles({ r }: { r: PersonalisationRequest }) {
         {people.map((p) => (
           <li key={p.position} className="rounded-lg border bg-gray-50 p-3">
             <div className="mb-2 text-sm font-semibold text-gray-900">
-              {p.position}. {p.type}{p.name && <span className="font-normal text-gray-600"> — {p.name}</span>}
+              {p.position}. {p.who}
             </div>
             <div className="flex flex-wrap gap-3">
               {p.parts.map((part) => (
