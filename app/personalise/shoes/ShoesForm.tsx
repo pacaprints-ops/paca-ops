@@ -114,7 +114,7 @@ export default function ShoesForm({ token, orderRef, note }: Props) {
         <h2 className="text-lg font-semibold text-[var(--pp-ink)]">Your family</h2>
         {members.length === 0 ? (
           <p className="rounded-xl border border-dashed border-gray-300 bg-white px-4 py-6 text-center text-sm text-gray-500">
-            No one added yet. Start with the adults, then the children and babies.
+            No one added yet. Add everyone in the order you want them on the print, from left to right.
           </p>
         ) : (
           <>
