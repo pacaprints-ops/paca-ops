@@ -9,7 +9,7 @@ export default function PersonalisationClient() {
   const [email, setEmail] = useState("");
   const [orderRef, setOrderRef] = useState("");
   const [note, setNote] = useState("");
-  const [kind, setKind] = useState<"standard" | "portrait">("standard");
+  const [kind, setKind] = useState<"standard" | "portrait" | "shoes">("standard");
   const [size, setSize] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "done" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
@@ -83,7 +83,7 @@ export default function PersonalisationClient() {
         <div>
           <label className="block text-xs font-semibold text-gray-700 mb-1">What are they personalising?</label>
           <div className="flex gap-2">
-            {([["standard", "Name / message"], ["portrait", "Family portrait"]] as const).map(([k, label]) => (
+            {([["standard", "Name / message"], ["portrait", "Family portrait"], ["shoes", "Family shoes"]] as const).map(([k, label]) => (
               <button
                 key={k}
                 type="button"

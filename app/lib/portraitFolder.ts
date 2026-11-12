@@ -1,5 +1,6 @@
 import { supabase } from "./supabaseClient";
 import { resolve, type PortraitSubmission } from "../personalise/portrait/catalog";
+import { resolveShoes, type ShoesSubmission } from "../personalise/shoes/catalog";
 
 export type PortraitFolderResult = { url?: string; missing?: string[]; error?: string };
 
@@ -12,21 +13,27 @@ export async function makePortraitFolder(requestId: string): Promise<PortraitFol
 
   const { data: req, error } = await supabase
     .from("personalisation_requests")
-    .select("order_ref, portrait")
+    .select("order_ref, kind, portrait")
     .eq("id", requestId)
     .single();
   if (error || !req?.portrait) return { error: "No portrait details on this request" };
 
-  const portrait = req.portrait as PortraitSubmission & { driveFolderUrl?: string };
+  const isShoes = req.kind === "shoes";
+  const portrait = req.portrait as (PortraitSubmission | ShoesSubmission) & { driveFolderUrl?: string };
   const safe = (s: string) => s.replace(/[\\/:*?"<>|]/g, "").trim();
-  const files = resolve(portrait).flatMap((p) => {
-    const who = safe(p.who);
-    return p.parts.map((part) => ({
-      path: part.file,
-      name: `${p.position} ${who} - ${part.part}${part.code ? ` ${part.code}` : ""}.png`,
-    }));
-  });
-  const folderName = safe(`${req.order_ref}${portrait.title ? ` - ${portrait.title}` : ""}`);
+  const files = isShoes
+    ? resolveShoes(portrait as ShoesSubmission).flatMap((p) => p.parts.map((part) => ({
+        path: part.file,
+        name: `${p.position} ${safe(p.who)} - ${part.part} ${safe(part.label)}.png`,
+      })))
+    : resolve(portrait as PortraitSubmission).flatMap((p) => {
+        const who = safe(p.who);
+        return p.parts.map((part) => ({
+          path: part.file,
+          name: `${p.position} ${who} - ${part.part}${part.code ? ` ${part.code}` : ""}.png`,
+        }));
+      });
+  const folderName = safe(`${isShoes ? "Shoes - " : ""}${req.order_ref}${portrait.title ? ` - ${portrait.title}` : ""}`);
 
   let result: PortraitFolderResult;
   try {

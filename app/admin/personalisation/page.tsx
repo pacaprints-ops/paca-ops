@@ -3,7 +3,43 @@ import { supabase } from "../../lib/supabaseClient";
 import PersonalisationClient from "./PersonalisationClient";
 import PortraitFolderButton from "./PortraitFolderButton";
 import { resolve, thumb, type PortraitSubmission } from "../../personalise/portrait/catalog";
+import { resolveShoes, shoeThumb, type ShoesSubmission } from "../../personalise/shoes/catalog";
 
+
+function ShoesFiles({ r }: { r: PersonalisationRequest }) {
+  if (!r.portrait) return null;
+  const sub = r.portrait as unknown as ShoesSubmission & { driveFolderUrl?: string };
+  const people = resolveShoes(sub);
+  return (
+    <div className="flex flex-col gap-3 py-2">
+      <div className="text-sm text-gray-700">
+        {sub.title && <>Family name: <b>{sub.title}</b> · </>}
+        {people.length} people
+      </div>
+      <PortraitFolderButton id={r.id} url={sub.driveFolderUrl} />
+      {sub.notes && <p className="rounded bg-amber-50 px-3 py-2 text-sm text-gray-800">Notes: {sub.notes}</p>}
+      <ol className="flex flex-col gap-2">
+        {people.map((p) => (
+          <li key={p.position} className="rounded-lg border bg-gray-50 p-3">
+            <div className="mb-2 text-sm font-semibold text-gray-900">{p.position}. {p.who}</div>
+            <div className="flex flex-wrap gap-3">
+              {p.parts.map((part) => (
+                <div key={part.part} className="flex w-52 gap-2">
+                  <img src={shoeThumb({ id: part.thumbId })} alt="" className="h-12 w-12 shrink-0 rounded bg-white object-contain" />
+                  <div className="min-w-0 text-xs">
+                    <div className="font-semibold text-gray-800">{part.part}</div>
+                    <div className="text-gray-600">{part.label}</div>
+                    <div className="break-all text-[10px] text-gray-400" title={part.file}>{part.file}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
 
 function PortraitFiles({ r }: { r: PersonalisationRequest }) {
   if (!r.portrait) return null;
@@ -126,6 +162,11 @@ export default async function PersonalisationPage() {
                           Portrait {r.size_label}
                         </span>
                       )}
+                      {r.kind === "shoes" && (
+                        <span className="ml-2 rounded-full bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-700">
+                          Shoes
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{r.customer_email}</td>
                     <td className="px-4 py-3 text-gray-500 hidden md:table-cell max-w-[160px] truncate">
@@ -144,17 +185,17 @@ export default async function PersonalisationPage() {
                       )}
                     </td>
                     <td className="px-4 py-3 hidden lg:table-cell max-w-xs text-gray-800">
-                      {r.kind === "portrait" && r.portrait
+                      {(r.kind === "portrait" || r.kind === "shoes") && r.portrait
                         ? <span className="text-gray-500">See files below</span>
                         : r.customer_response ?? <span className="text-gray-400">—</span>}
                     </td>
                   </tr>
-                  {r.kind === "portrait" && r.portrait && (
+                  {(r.kind === "portrait" || r.kind === "shoes") && r.portrait && (
                     <tr className="border-b">
                       <td colSpan={6} className="px-4 pb-4">
                         <details>
                           <summary className="cursor-pointer py-2 text-sm font-semibold text-sky-700">Show family &amp; files</summary>
-                          <PortraitFiles r={r} />
+                          {r.kind === "shoes" ? <ShoesFiles r={r} /> : <PortraitFiles r={r} />}
                         </details>
                       </td>
                     </tr>
