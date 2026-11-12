@@ -1,5 +1,50 @@
+import { Fragment } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import PersonalisationClient from "./PersonalisationClient";
+import { resolve, thumb, type PortraitSubmission } from "../../personalise/portrait/catalog";
+
+const DRIVE_FOLDER = "https://drive.google.com/drive/folders/12nH9wanF1fMgQehh-vxHKQAfGlQgkczM";
+
+function PortraitFiles({ r }: { r: PersonalisationRequest }) {
+  if (!r.portrait) return null;
+  const people = resolve(r.portrait);
+  return (
+    <div className="flex flex-col gap-3 py-2">
+      <div className="text-sm text-gray-700">
+        {r.portrait.title && <>Title: <b>{r.portrait.title}</b> · </>}
+        {people.length} people &amp; pets{r.size_label && <> (paid for {r.size_label})</>}
+        {" · "}
+        <a href={DRIVE_FOLDER} target="_blank" rel="noreferrer" className="underline">Open designs in Drive</a>
+      </div>
+      {r.portrait.notes && <p className="rounded bg-amber-50 px-3 py-2 text-sm text-gray-800">Notes: {r.portrait.notes}</p>}
+      <ol className="flex flex-col gap-2">
+        {people.map((p) => (
+          <li key={p.position} className="rounded-lg border bg-gray-50 p-3">
+            <div className="mb-2 text-sm font-semibold text-gray-900">
+              {p.position}. {p.type}{p.name && <span className="font-normal text-gray-600"> — {p.name}</span>}
+            </div>
+            <div className="flex flex-wrap gap-3">
+              {p.parts.map((part) => (
+                <div key={part.part} className="flex w-44 gap-2">
+                  {part.thumbId ? (
+                    <img src={thumb({ id: part.thumbId })} alt="" className="h-12 w-12 shrink-0 rounded bg-white object-contain" />
+                  ) : (
+                    <div className="h-12 w-12 shrink-0 rounded bg-white" />
+                  )}
+                  <div className="min-w-0 text-xs">
+                    <div className="font-semibold text-gray-800">{part.part}{part.code && ` ${part.code}`}</div>
+                    <div className="text-gray-600">{part.label}</div>
+                    <div className="break-all text-[10px] text-gray-400" title={part.file}>{part.file}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +57,9 @@ type PersonalisationRequest = {
   status: string;
   customer_response: string | null;
   responded_at: string | null;
+  kind: string | null;
+  size_label: string | null;
+  portrait: PortraitSubmission | null;
 };
 
 function formatDateTimeUK(iso: string | null) {
@@ -27,7 +75,7 @@ function formatDateTimeUK(iso: string | null) {
 export default async function PersonalisationPage() {
   const { data, error } = await supabase
     .from("personalisation_requests")
-    .select("id, sent_at, customer_email, order_ref, note, status, customer_response, responded_at")
+    .select("id, sent_at, customer_email, order_ref, note, status, customer_response, responded_at, kind, size_label, portrait")
     .order("sent_at", { ascending: false })
     .limit(100);
 
@@ -70,8 +118,16 @@ export default async function PersonalisationPage() {
               </thead>
               <tbody>
                 {requests.map((r) => (
-                  <tr key={r.id} className="border-b last:border-b-0 hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium whitespace-nowrap">{r.order_ref}</td>
+                  <Fragment key={r.id}>
+                  <tr className="border-b last:border-b-0 hover:bg-gray-50">
+                    <td className="px-4 py-3 font-medium whitespace-nowrap">
+                      {r.order_ref}
+                      {r.kind === "portrait" && (
+                        <span className="ml-2 rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-700">
+                          Portrait {r.size_label}
+                        </span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{r.customer_email}</td>
                     <td className="px-4 py-3 text-gray-500 hidden md:table-cell max-w-[160px] truncate">
                       {r.note ?? "—"}
@@ -89,9 +145,22 @@ export default async function PersonalisationPage() {
                       )}
                     </td>
                     <td className="px-4 py-3 hidden lg:table-cell max-w-xs text-gray-800">
-                      {r.customer_response ?? <span className="text-gray-400">—</span>}
+                      {r.kind === "portrait" && r.portrait
+                        ? <span className="text-gray-500">See files below</span>
+                        : r.customer_response ?? <span className="text-gray-400">—</span>}
                     </td>
                   </tr>
+                  {r.kind === "portrait" && r.portrait && (
+                    <tr className="border-b">
+                      <td colSpan={6} className="px-4 pb-4">
+                        <details>
+                          <summary className="cursor-pointer py-2 text-sm font-semibold text-sky-700">Show family &amp; files</summary>
+                          <PortraitFiles r={r} />
+                        </details>
+                      </td>
+                    </tr>
+                  )}
+                  </Fragment>
                 ))}
               </tbody>
             </table>

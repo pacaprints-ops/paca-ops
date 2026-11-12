@@ -1,5 +1,6 @@
 import { supabase } from "../lib/supabaseClient";
 import PersonaliseForm from "./PersonaliseForm";
+import PortraitForm from "./portrait/PortraitForm";
 
 export default async function PersonalisePage({
   searchParams,
@@ -19,7 +20,7 @@ export default async function PersonalisePage({
 
   const { data: req } = await supabase
     .from("personalisation_requests")
-    .select("order_ref, status, note")
+    .select("order_ref, status, note, kind, size_label, min_people, max_people")
     .eq("token", token)
     .single();
 
@@ -39,6 +40,19 @@ export default async function PersonalisePage({
         <h1 style={{ color: "#333" }}>Already submitted</h1>
         <p style={{ color: "#555" }}>We already have your personalisation details — we'll get your order made and on its way!</p>
       </main>
+    );
+  }
+
+  if (req.kind === "portrait") {
+    return (
+      <PortraitForm
+        token={token}
+        orderRef={req.order_ref}
+        note={req.note}
+        sizeLabel={req.size_label ?? "2–4"}
+        minPeople={req.min_people ?? 2}
+        maxPeople={req.max_people ?? 4}
+      />
     );
   }
 
