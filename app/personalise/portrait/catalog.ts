@@ -117,8 +117,9 @@ export function resolve(sub: PortraitSubmission): ResolvedMember[] {
     if (isPet(m.type)) {
       add(m.type, optionById(m.pet));
     } else {
-      const first = isAdult(m.type) && adultsSeen++ === 0;
       const bodies = catalog.bodies[m.type];
+      // Only used if a separate "first adult" pose is ever added back to the catalog.
+      const first = isAdult(m.type) && adultsSeen++ === 0 && !!bodies.first;
       const skinIdx = Math.max(0, catalog.skins.findIndex((s) => s.code === m.skin));
       const bodyFile = (first && bodies.first ? bodies.first : bodies.other)[skinIdx];
       parts.push({ part: "Body", label: `${m.skin ?? "S1"} skin${first ? " · 1st adult pose" : ""}`, code: m.skin, file: bodyFile });

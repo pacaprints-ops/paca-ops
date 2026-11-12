@@ -48,7 +48,6 @@ for (const h of hairRows) {
 // ---------- Clothes (offered codes) ----------
 const DAD = "Dad/Clothes", MUM = "Mum/Sets", BOY = "Kids/Boy/Cloths", GIRL = "Kids/Girl", BABY = "Kids/Baby/Clothes";
 const MUM_D = "Mum/Sets/Body D use this/TShirtForBodyD";
-const MUM_C_SCP = "Family Scp design/women/tshirts/tshirt for arm out";
 
 // Girl hair ribbons R1–R14 — also offered to babies as an optional bow
 const RIBBONS = Array.from({ length: 14 }, (_, i) =>
@@ -66,14 +65,9 @@ const people = {
   },
   Woman: {
     hair: hair.Woman,
-    // T-shirts come in two cuts: "arms in" (2nd adult, body D) and "arm out" (1st adult, body C).
-    // The customer only picks the colour; the right cut is chosen from where they sit.
+    // Women only use body D, so T-shirts come from the body D folder.
     tops: [
-      ...["T1", "T2", "T3", "T4", "T5", "T6"].map((code, i) =>
-        item(`${MUM_D}/${code}.png`, {
-          code, label: `T-shirt ${code}`, kind: "T-shirt",
-          fileArmOut: `${MUM_C_SCP}/t${i + 1}.png`,
-        })),
+      ...codes(MUM_D, ["T1", "T2", "T3", "T4", "T5", "T6"], "T-shirt", { kind: "T-shirt" }),
       ...codes(`${MUM}/WavyTop`, ["P1", "P2", "P4", "P6", "P8", "P10"], "Top", { kind: "Top" }),
     ],
     bottoms: codes(`${MUM}/Jeans`, ["J1", "J2", "J10"], "Jeans", { kind: "Jeans" }),
@@ -110,17 +104,13 @@ const people = {
 };
 
 // ---------- Bodies / skin (S1 lightest … S4 darkest) ----------
-// Men's folders B0–B4 are skin tones (letter = pose); everyone else: number = skin, letter = pose.
+// One pose per person (Carrie, 2026-11-12): men pose "a" (arms in front), women body D
+// ("2nd adult"), boys body C, girls body D. List order = skin S1 (lightest) … S4 (darkest).
+// Men have five skin folders; B1 (light beige) is left out — B0/2/3/4 match the S1–S4 swatches best.
 const bodies = {
-  Man: {
-    first: ["Dad/Body & Skin/B0/B0 - USE THIS BODY.png", "Dad/Body & Skin/B1/skincolor1e.png", "Dad/Body & Skin/Body2/skincolor2e.png", "Dad/Body & Skin/Body4/skincolor4e.png"],
-    other: ["Dad/Body & Skin/B0/skincolor0d.png", "Dad/Body & Skin/B1/skincolor1d.png", "Dad/Body & Skin/Body2/skincolor2d.png", "Dad/Body & Skin/Body4/skincolor4d.png"],
-  },
-  Woman: {
-    first: [1, 2, 3, 4].map((s) => `Mum/Sets/Body C  - use this one if its first adult/Body & Skin/bodyskin${s}c.png`),
-    // Body D has no skin-2 file — fall back to body C for S2
-    other: [1, 2, 3, 4].map((s) => s === 2 ? `Mum/Sets/Body C  - use this one if its first adult/Body & Skin/bodyskin2c.png` : `Mum/Sets/Body D use this/Skin & Body/bodyskin${s}d.png`),
-  },
+  Man: { other: ["Dad/Body & Skin/B0/skincolor0a.png", "Dad/Body & Skin/Body2/skincolor2a.png", "Dad/Body & Skin/Body3/skincolor3a.png", "Dad/Body & Skin/Body4/skincolor4a.png"] },
+  // "BD - women use 2nd.png" is body D in skin 2
+  Woman: { other: ["Mum/Sets/Body D use this/Skin & Body/bodyskin1d.png", "Mum/Sets/Body D use this/Skin & Body/BD - women use 2nd.png", "Mum/Sets/Body D use this/Skin & Body/bodyskin3d.png", "Mum/Sets/Body D use this/Skin & Body/bodyskin4d.png"] },
   Boy: { other: [1, 2, 3, 4].map((s) => `Kids/Boy/Body/BodyC/skincolor${s}c.png`) },
   Girl: { other: [1, 2, 3, 4].map((s) => `Kids/Girl/Body and specific body clothes/BodyD/Body/skincolor${s}d.png`) },
   Baby: { other: [1, 2, 3, 4].map((s) => `Kids/Baby/Body & Skin/skincolor${s}.png`) },
