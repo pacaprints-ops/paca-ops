@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import {
-  shoesCatalog, SHOE_TYPES, MAX_SHOE_PEOPLE, posesFor, poseOf, shoeChoices, shoeMissing, shoeThumb,
+  shoesCatalog, SHOE_TYPES, CHILD_AGES, MAX_SHOE_PEOPLE, posesFor, poseOf, shoeChoices, shoeMissing, shoeThumb,
   type ShoeMember, type ShoeType, type Pose, type ShoeOption,
 } from "./catalog";
 
@@ -210,7 +210,7 @@ function MemberCard({ member, position, onEdit, onRemove, onUp, onDown }: {
       {shoe && <img src={shoeThumb(shoe)} alt="" className="h-12 w-12 shrink-0 rounded-lg bg-[var(--pp-bg)] object-contain" />}
       <div className="min-w-0 flex-1">
         <div className="font-semibold text-[var(--pp-ink)]">
-          {member.type}{member.name?.trim() && <span className="ml-1 font-normal text-gray-600">· {member.name.trim()}</span>}
+          {member.type}{member.type === "Child" && member.age && <span className="ml-1 font-normal text-gray-600">aged {member.age}</span>}{member.name?.trim() && <span className="ml-1 font-normal text-gray-600">· {member.name.trim()}</span>}
         </div>
         <div className="truncate text-xs text-gray-500">{desc}</div>
       </div>
@@ -266,6 +266,20 @@ function MemberEditor({ initial, isNew, onCancel, onSave }: {
       <Step n={n++} title="Name (optional)" hint="Shown under their shoes on the print. Leave blank for no name.">
         <input id="member-name" value={m.name ?? ""} maxLength={30} onChange={(e) => set({ name: e.target.value })} className="rounded-lg border border-gray-300 px-3 py-2 text-base" />
       </Step>
+
+      {m.type === "Child" && (
+        <Step n={n++} title="How old?" hint="We use this to get each child's size right on the print.">
+          <select
+            id="member-age"
+            value={m.age ?? ""}
+            onChange={(e) => set({ age: e.target.value ? Number(e.target.value) : undefined })}
+            className="self-start rounded-lg border border-gray-300 bg-white px-3 py-2 text-base"
+          >
+            <option value="">Choose age</option>
+            {CHILD_AGES.map((a) => <option key={a} value={a}>{a} years old</option>)}
+          </select>
+        </Step>
+      )}
 
       {poses.length > 1 && (
         <Step n={n++} title="Legs">

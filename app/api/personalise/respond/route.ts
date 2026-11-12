@@ -64,6 +64,7 @@ export async function POST(request: NextRequest) {
       notes: String(sub?.notes ?? "").slice(0, 1000).trim() || undefined,
       members: members.map((m) => ({
         type: m.type, skin: m.skin, pose: m.pose, shoe: Number(m.shoe),
+        age: m.type === "Child" && m.age != null ? Number(m.age) : undefined,
         name: String(m.name ?? "").slice(0, 30).trim() || undefined,
       })),
     };
