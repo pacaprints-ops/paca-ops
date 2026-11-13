@@ -46,10 +46,10 @@ export const isAdult = (t: XType) => t === "Man" || t === "Woman";
 export const jumpersFor = (t: XType) => (t === "Child" ? xmasCatalog.jumpers.child : xmasCatalog.jumpers.adult);
 export const hairFor = (t: XType) => (isPerson(t) ? xmasCatalog.hair[t] : []);
 
-/** Square print for up to 4 people and 1 pet; anything bigger is the A5 landscape card. */
-export function printFormat(members: XMember[]): "Square print" | "A5 landscape card" {
+/** Square card for up to 4 people and 1 pet; anything bigger is the A5 landscape card. */
+export function printFormat(members: XMember[]): "Square card" | "A5 landscape card" {
   const pets = members.filter((m) => m.type === "Pet").length;
-  return members.length - pets <= 4 && pets <= 1 ? "Square print" : "A5 landscape card";
+  return members.length - pets <= 4 && pets <= 1 ? "Square card" : "A5 landscape card";
 }
 
 /** Adults can't stand on the outside edge — when there are at least 2 children/pets, both ends must be one. */
@@ -57,7 +57,7 @@ export function edgeProblem(members: XMember[]): string | null {
   const others = members.filter((m) => !isAdult(m.type)).length;
   if (others < 2 || members.length < 2) return null;
   if (isAdult(members[0].type) || isAdult(members[members.length - 1].type)) {
-    return "Adults can't go on the ends of the print. Please move a child or pet to the first and last places using the arrows.";
+    return "Adults can't go on the ends of the card. Please move a child or pet to the first and last places using the arrows.";
   }
   return null;
 }

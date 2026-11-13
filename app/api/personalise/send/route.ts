@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
       : "Thanks so much for your order. We just need a couple of details to personalise it for you.";
   const button = isPortrait || isShoes || isXmas ? "Build your family" : "Fill in your details";
   const timing = isPortrait || isShoes || isXmas
-    ? "It takes about 5 minutes and means we can start making your print straight away."
+    ? `It takes about 5 minutes and means we can start making your ${isXmas ? "card" : "print"} straight away.`
     : "It only takes 30 seconds and means we can get your order made and on its way as quickly as possible.";
 
   const { error: emailError } = await resend.emails.send({

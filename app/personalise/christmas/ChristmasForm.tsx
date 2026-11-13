@@ -82,7 +82,7 @@ export default function ChristmasForm({ token, orderRef, note }: Props) {
         <div className="py-10 text-center">
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--pp-teal)] text-2xl">✓</div>
           <h1 className="text-2xl font-semibold text-[var(--pp-ink)]">Thank you!</h1>
-          <p className="mx-auto mt-2 max-w-sm text-gray-600">We have your family. We&apos;ll start making your Christmas print and be in touch if we have any questions.</p>
+          <p className="mx-auto mt-2 max-w-sm text-gray-600">We have your family. We&apos;ll start making your Christmas card and be in touch if we have any questions.</p>
         </div>
       </Shell>
     );
@@ -114,7 +114,7 @@ export default function ChristmasForm({ token, orderRef, note }: Props) {
         <h2 className="text-lg font-semibold text-[var(--pp-ink)]">Your family</h2>
         {members.length === 0 ? (
           <p className="rounded-xl border border-dashed border-gray-300 bg-white px-4 py-6 text-center text-sm text-gray-500">
-            No one added yet. Add everyone in the order you want them on the print, from left to right.
+            No one added yet. Add everyone in the order you want them on the card, from left to right.
           </p>
         ) : (
           <>
@@ -144,7 +144,7 @@ export default function ChristmasForm({ token, orderRef, note }: Props) {
         <h2 className="text-lg font-semibold text-[var(--pp-ink)]">Add a person or pet</h2>
         {full ? (
           <p className="rounded-lg bg-[var(--pp-peach-soft)] px-4 py-3 text-sm text-gray-800">
-            You&apos;ve added {MAX_X_MEMBERS}, which is the most we can fit on one print.
+            You&apos;ve added {MAX_X_MEMBERS}, which is the most we can fit on one card.
           </p>
         ) : (
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -165,7 +165,7 @@ export default function ChristmasForm({ token, orderRef, note }: Props) {
 
       <section className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-4">
         <label className="flex flex-col gap-1">
-          <span className="text-sm font-semibold text-[var(--pp-ink)]">Family name for the print</span>
+          <span className="text-sm font-semibold text-[var(--pp-ink)]">Family name for the card</span>
           <span className="text-xs text-gray-500">For example: The Smiths. Leave blank if you don&apos;t want one.</span>
           <input id="xmas-title" value={title} maxLength={60} onChange={(e) => setTitle(e.target.value)} className="rounded-lg border border-gray-300 px-3 py-2 text-base" />
         </label>
@@ -270,12 +270,12 @@ function MemberEditor({ initial, isNew, onCancel, onSave }: {
         <button type="button" onClick={onCancel} className="text-sm text-gray-600 underline">Back to family</button>
       </header>
 
-      <Step n={n++} title="Name (optional)" hint="Shown on the print. Leave blank for no name.">
+      <Step n={n++} title="Name (optional)" hint="Shown on the card. Leave blank for no name.">
         <input id="member-name" value={m.name ?? ""} maxLength={30} onChange={(e) => set({ name: e.target.value })} className="rounded-lg border border-gray-300 px-3 py-2 text-base" />
       </Step>
 
       {m.type === "Child" && (
-        <Step n={n++} title="How old?" hint="We use this to get each child's size right on the print.">
+        <Step n={n++} title="How old?" hint="We use this to get each child's size right on the card.">
           <select
             id="member-age"
             value={m.age ?? ""}
