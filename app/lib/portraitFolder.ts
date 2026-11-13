@@ -1,6 +1,7 @@
 import { supabase } from "./supabaseClient";
 import { resolve, type PortraitSubmission } from "../personalise/portrait/catalog";
 import { resolveShoes, type ShoesSubmission } from "../personalise/shoes/catalog";
+import { resolveXmas, type XmasSubmission } from "../personalise/christmas/catalog";
 
 export type PortraitFolderResult = { url?: string; missing?: string[]; error?: string };
 
@@ -19,9 +20,15 @@ export async function makePortraitFolder(requestId: string): Promise<PortraitFol
   if (error || !req?.portrait) return { error: "No portrait details on this request" };
 
   const isShoes = req.kind === "shoes";
-  const portrait = req.portrait as (PortraitSubmission | ShoesSubmission) & { driveFolderUrl?: string };
+  const isXmas = req.kind === "christmas";
+  const portrait = req.portrait as (PortraitSubmission | ShoesSubmission | XmasSubmission) & { driveFolderUrl?: string };
   const safe = (s: string) => s.replace(/[\\/:*?"<>|]/g, "").trim();
-  const files = isShoes
+  const files = isXmas
+    ? resolveXmas(portrait as XmasSubmission).flatMap((p) => p.parts.map((part) => ({
+        path: part.file,
+        name: `${p.position} ${safe(p.who)} - ${part.part} ${safe(part.label)}.png`,
+      })))
+    : isShoes
     ? resolveShoes(portrait as ShoesSubmission).flatMap((p) => p.parts.map((part) => ({
         path: part.file,
         name: `${p.position} ${safe(p.who)} - ${part.part} ${safe(part.label)}.png`,
@@ -34,7 +41,7 @@ export async function makePortraitFolder(requestId: string): Promise<PortraitFol
           name: `${p.position} ${who} - ${part.part}${part.code ? ` ${part.code}` : ""}.png`,
         }));
       });
-  const folderName = safe(`${isShoes ? "Shoes - " : ""}${req.order_ref}${portrait.title ? ` - ${portrait.title}` : ""}`);
+  const folderName = safe(`${isShoes ? "Shoes - " : isXmas ? "Christmas - " : ""}${req.order_ref}${portrait.title ? ` - ${portrait.title}` : ""}`);
 
   let result: PortraitFolderResult;
   try {

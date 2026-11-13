@@ -2,6 +2,7 @@ import { supabase } from "../lib/supabaseClient";
 import PersonaliseForm from "./PersonaliseForm";
 import PortraitForm from "./portrait/PortraitForm";
 import ShoesForm from "./shoes/ShoesForm";
+import ChristmasForm from "./christmas/ChristmasForm";
 
 export default async function PersonalisePage({
   searchParams,
@@ -55,6 +56,10 @@ export default async function PersonalisePage({
         maxPeople={req.max_people ?? 4}
       />
     );
+  }
+
+  if (req.kind === "christmas") {
+    return <ChristmasForm token={token} orderRef={req.order_ref} note={req.note} />;
   }
 
   if (req.kind === "shoes") {

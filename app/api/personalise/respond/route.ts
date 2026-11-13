@@ -4,6 +4,7 @@ import { supabase } from "../../../lib/supabaseClient";
 import { escapeHtml } from "../../../lib/escapeHtml";
 import { makePortraitFolder } from "../../../lib/portraitFolder";
 import { portraitText, validMember, type PortraitSubmission } from "../../../personalise/portrait/catalog";
+import { MAX_X_MEMBERS, edgeProblem, validXMember, xmasText, type XmasSubmission } from "../../../personalise/christmas/catalog";
 import { MAX_SHOE_PEOPLE, shoesText, validShoeMember, type ShoesSubmission } from "../../../personalise/shoes/catalog";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -32,6 +33,7 @@ export async function POST(request: NextRequest) {
   let responseText: string;
   let portrait: PortraitSubmission | null = null;
   let shoes: ShoesSubmission | null = null;
+  let xmas: XmasSubmission | null = null;
 
   if (req.kind === "portrait") {
     const sub = body.portrait as PortraitSubmission | undefined;
@@ -49,6 +51,29 @@ export async function POST(request: NextRequest) {
       members: members.map((m) => ({ ...m, name: undefined, age: m.age == null ? undefined : Number(m.age) })),
     };
     responseText = portraitText(portrait, req.size_label);
+  } else if (req.kind === "christmas") {
+    const sub = body.christmas as XmasSubmission | undefined;
+    const members = Array.isArray(sub?.members) ? sub!.members : [];
+    if (members.length === 0) return NextResponse.json({ error: "Add at least one person" }, { status: 400 });
+    if (members.length > MAX_X_MEMBERS) {
+      return NextResponse.json({ error: `The print fits up to ${MAX_X_MEMBERS} people & pets` }, { status: 400 });
+    }
+    if (!members.every(validXMember)) {
+      return NextResponse.json({ error: "Some choices are incomplete — please check each person" }, { status: 400 });
+    }
+    const edge = edgeProblem(members);
+    if (edge) return NextResponse.json({ error: edge }, { status: 400 });
+    xmas = {
+      title: String(sub?.title ?? "").slice(0, 60).trim() || undefined,
+      notes: String(sub?.notes ?? "").slice(0, 1000).trim() || undefined,
+      members: members.map((m) => ({
+        type: m.type, skin: m.skin, jumper: m.jumper, hair: m.hair, pet: m.pet,
+        age: m.type === "Child" && m.age != null ? Number(m.age) : undefined,
+        extras: Array.isArray(m.extras) && m.extras.length ? [...new Set(m.extras)] : undefined,
+        name: String(m.name ?? "").slice(0, 30).trim() || undefined,
+      })),
+    };
+    responseText = xmasText(xmas);
   } else if (req.kind === "shoes") {
     const sub = body.shoes as ShoesSubmission | undefined;
     const members = Array.isArray(sub?.members) ? sub!.members : [];
@@ -81,7 +106,7 @@ export async function POST(request: NextRequest) {
       customer_response: responseText,
       responded_at: new Date().toISOString(),
       // Shoes picks live in the same jsonb column as portraits (kind tells them apart)
-      ...(portrait ? { portrait } : shoes ? { portrait: shoes } : {}),
+      ...(portrait ? { portrait } : shoes ? { portrait: shoes } : xmas ? { portrait: xmas } : {}),
     })
     .eq("token", token);
 
@@ -89,7 +114,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: updateError.message }, { status: 500 });
   }
 
-  const what = portrait ? "Family portrait" : shoes ? "Family shoes print" : null;
+  const what = portrait ? "Family portrait" : shoes ? "Family shoes print" : xmas ? "Christmas family" : null;
   await resend.emails.send({
     from: "Paca Prints <hello@pacaprints.com>",
     to: NOTIFY_EMAIL,

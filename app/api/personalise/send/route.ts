@@ -4,6 +4,7 @@ import { supabase } from "../../../lib/supabaseClient";
 import { SIZES } from "../../../personalise/portrait/catalog";
 import { escapeHtml } from "../../../lib/escapeHtml";
 import { MAX_SHOE_PEOPLE } from "../../../personalise/shoes/catalog";
+import { MAX_X_MEMBERS } from "../../../personalise/christmas/catalog";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -16,6 +17,7 @@ export async function POST(request: NextRequest) {
 
   const isPortrait = kind === "portrait";
   const isShoes = kind === "shoes";
+  const isXmas = kind === "christmas";
   const sizeRow = isPortrait ? SIZES.find((s) => s.label === size) : undefined;
   if (isPortrait && !sizeRow) {
     return NextResponse.json({ error: "Pick the print size the customer bought" }, { status: 400 });
@@ -39,6 +41,7 @@ export async function POST(request: NextRequest) {
         ? { kind: "portrait", size_label: sizeRow.label, min_people: sizeRow.min, max_people: sizeRow.max }
         : {}),
       ...(isShoes ? { kind: "shoes", min_people: 1, max_people: MAX_SHOE_PEOPLE } : {}),
+      ...(isXmas ? { kind: "christmas", min_people: 1, max_people: MAX_X_MEMBERS } : {}),
     });
 
   if (dbError) {
@@ -51,11 +54,13 @@ export async function POST(request: NextRequest) {
 
   const intro = isPortrait
     ? `Thanks so much for your family portrait order! Tap below to build your family — pick each person's hair, skin tone and outfit (and add your pets). Your print is for <b>${sizeRow!.label} people &amp; pets</b>.`
-    : isShoes
+    : isXmas
+      ? `Thanks so much for your Christmas family order! Tap below to add everyone (up to ${MAX_X_MEMBERS} people &amp; pets) and pick each person's jumper colour, hair and any Christmas extras.`
+      : isShoes
       ? `Thanks so much for your family shoes print order! Tap below to add everyone (up to ${MAX_SHOE_PEOPLE} people) and pick each person's skin tone and shoes.`
       : "Thanks so much for your order. We just need a couple of details to personalise it for you.";
-  const button = isPortrait || isShoes ? "Build your family" : "Fill in your details";
-  const timing = isPortrait || isShoes
+  const button = isPortrait || isShoes || isXmas ? "Build your family" : "Fill in your details";
+  const timing = isPortrait || isShoes || isXmas
     ? "It takes about 5 minutes and means we can start making your print straight away."
     : "It only takes 30 seconds and means we can get your order made and on its way as quickly as possible.";
 
@@ -64,7 +69,9 @@ export async function POST(request: NextRequest) {
     to: customerEmail,
     subject: isPortrait
       ? `Build your family portrait — Order ${orderRef}`
-      : isShoes
+      : isXmas
+        ? `Build your Christmas family — Order ${orderRef}`
+        : isShoes
         ? `Build your family shoes print — Order ${orderRef}`
         : `Your personalisation details — Order ${orderRef}`,
     html: `
