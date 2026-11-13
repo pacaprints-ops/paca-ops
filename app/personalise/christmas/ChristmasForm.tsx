@@ -6,6 +6,7 @@ import {
   type XMember, type XType, type XOption, type ExtraKey,
 } from "./catalog";
 
+const isCat = (p: XOption) => /^cat\b/i.test(p.label);
 const TYPE_HINT: Record<XType, string> = { Man: "Adult", Woman: "Adult", Child: "Under 14", Pet: "Dog or cat" };
 
 type Props = { token: string; orderRef: string; note?: string | null };
@@ -260,6 +261,8 @@ function MemberEditor({ initial, isNew, onCancel, onSave }: {
   const missing = xMissing(m);
   const [tried, setTried] = useState(false);
   const isPet = m.type === "Pet";
+  const chosenPet = xmasCatalog.pets.find((p) => p.id === m.pet);
+  const [petTab, setPetTab] = useState<"Dogs" | "Cats">(chosenPet && isCat(chosenPet) ? "Cats" : "Dogs");
   const toggleExtra = (k: ExtraKey) => set({ extras: m.extras?.includes(k) ? m.extras.filter((e) => e !== k) : [...(m.extras ?? []), k] });
   let n = 1;
 
@@ -290,7 +293,21 @@ function MemberEditor({ initial, isNew, onCancel, onSave }: {
 
       {isPet ? (
         <Step n={n++} title="Which pet?" hint="Pick the one that looks most like yours.">
-          <TileGrid options={xmasCatalog.pets} value={m.pet} onPick={(id) => set({ pet: id })} />
+          <div role="tablist" className="flex gap-2">
+            {(["Dogs", "Cats"] as const).map((t) => (
+              <button
+                key={t}
+                type="button"
+                role="tab"
+                aria-selected={petTab === t}
+                onClick={() => setPetTab(t)}
+                className={`rounded-full border-2 px-5 py-2 text-sm font-semibold ${petTab === t ? "border-[var(--pp-ink)] bg-[var(--pp-teal)] text-[var(--pp-ink)]" : "border-gray-200 bg-white text-gray-600"}`}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+          <TileGrid options={xmasCatalog.pets.filter((p) => isCat(p) === (petTab === "Cats"))} value={m.pet} onPick={(id) => set({ pet: id })} />
         </Step>
       ) : (
         <>
