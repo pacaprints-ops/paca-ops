@@ -11,6 +11,7 @@ export default function PersonalisationClient() {
   const [note, setNote] = useState("");
   const [kind, setKind] = useState<"standard" | "portrait" | "shoes" | "christmas">("standard");
   const [size, setSize] = useState("");
+  const [customCount, setCustomCount] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "done" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const [link, setLink] = useState("");
@@ -24,6 +25,9 @@ export default function PersonalisationClient() {
     e.preventDefault();
     if (!email.trim() || !orderRef.trim()) return;
     if (kind === "portrait" && !size) { setErrorMsg("Pick the print size the customer bought"); setStatus("error"); return; }
+    if (kind === "portrait" && size === "custom" && !(Number(customCount) >= 1 && Number(customCount) <= 20)) {
+      setErrorMsg("Type how many people & pets (1–20) for the custom size"); setStatus("error"); return;
+    }
     setStatus("sending");
     setErrorMsg("");
     setLink("");
@@ -38,6 +42,7 @@ export default function PersonalisationClient() {
         note: note.trim() || undefined,
         kind,
         size: kind === "portrait" ? size : undefined,
+        customCount: kind === "portrait" && size === "custom" ? Number(customCount) : undefined,
       }),
     });
 
@@ -49,6 +54,7 @@ export default function PersonalisationClient() {
       setOrderRef("");
       setNote("");
       setSize("");
+      setCustomCount("");
       router.refresh();
     } else {
       setErrorMsg(data.error ?? "Something went wrong");
@@ -112,6 +118,26 @@ export default function PersonalisationClient() {
                   {s.label}
                 </button>
               ))}
+              <button
+                type="button"
+                onClick={() => setSize("custom")}
+                aria-pressed={size === "custom"}
+                className={`rounded-lg border px-4 py-2 text-sm font-semibold ${size === "custom" ? "border-gray-900 bg-gray-900 text-white" : "bg-white text-gray-700"}`}
+              >
+                Custom
+              </button>
+              {size === "custom" && (
+                <input
+                  type="number"
+                  min={1}
+                  max={20}
+                  value={customCount}
+                  onChange={(e) => setCustomCount(e.target.value)}
+                  placeholder="How many?"
+                  aria-label="How many people and pets"
+                  className="w-28 rounded-lg border px-3 py-2 text-sm"
+                />
+              )}
             </div>
           </div>
         )}

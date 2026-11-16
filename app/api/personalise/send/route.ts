@@ -9,7 +9,7 @@ import { MAX_X_MEMBERS } from "../../../personalise/christmas/catalog";
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(request: NextRequest) {
-  const { customerEmail, orderRef, note, kind, size } = await request.json();
+  const { customerEmail, orderRef, note, kind, size, customCount } = await request.json();
 
   if (!customerEmail || !orderRef) {
     return NextResponse.json({ error: "Email and order ref are required" }, { status: 400 });
@@ -18,7 +18,13 @@ export async function POST(request: NextRequest) {
   const isPortrait = kind === "portrait";
   const isShoes = kind === "shoes";
   const isXmas = kind === "christmas";
-  const sizeRow = isPortrait ? SIZES.find((s) => s.label === size) : undefined;
+  // "custom" = a one-off number of people & pets typed in by us (e.g. 9 for a custom order)
+  const custom = Math.round(Number(customCount));
+  const sizeRow = !isPortrait
+    ? undefined
+    : size === "custom"
+      ? (custom >= 1 && custom <= 20 ? { label: String(custom), min: custom, max: custom } : undefined)
+      : SIZES.find((s) => s.label === size);
   if (isPortrait && !sizeRow) {
     return NextResponse.json({ error: "Pick the print size the customer bought" }, { status: 400 });
   }
