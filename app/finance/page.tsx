@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { supabase } from "../lib/supabaseClient";
 import { taxPeriod, fmtDateUK as fmtUK } from "../lib/taxPeriods";
+import { fetchTaxOrders, summariseTaxOrders } from "../lib/taxOrders";
 
 type FinanceSettings = {
   owners_count: number;
@@ -273,24 +274,14 @@ export default function FinancePage() {
     };
     setSettings(safeSettings);
 
-    // orders summary — settled only, so tax reflects money actually received
-    const { data: oData, error: oErr } = await supabase.rpc("finance_orders_summary", {
-      p_from: range.ordersFrom,
-      p_to: range.endExclusive,
-      p_platform: null,
-      p_settled_only: true,
-    });
-    if (oErr) {
-      setErrorMsg(oErr.message);
+    // orders summary — settled only, by date paid out (cash basis), same as the Tax Year page
+    try {
+      setOrdersSummary(summariseTaxOrders(await fetchTaxOrders(range)) as OrdersSummary);
+    } catch (e) {
+      setErrorMsg(e instanceof Error ? e.message : "Failed to load orders");
       setLoading(false);
       return;
     }
-    const os = (Array.isArray(oData) ? oData[0] : oData) as OrdersSummary | undefined;
-    setOrdersSummary({
-      gross_revenue: Number(os?.gross_revenue ?? 0),
-      platform_fees: Number(os?.platform_fees ?? 0),
-      payout: Number(os?.payout ?? 0),
-    });
 
     // expenses
     const { data: eData, error: eErr } = await supabase.rpc("list_expenses_in_range", {

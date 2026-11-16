@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import { taxPeriod } from "../../lib/taxPeriods";
+import { fetchTaxOrders, summariseTaxOrders } from "../../lib/taxOrders";
 import { getOrMigrateUserData, setUserData } from "../../lib/userStore";
 
 // ── UK Tax Constants ───────────────────────────────────────────────
@@ -191,21 +192,15 @@ export default function TaxCalculator({ person }: { person: "carrie" | "vicky" }
     const range = taxPeriod(taxYearStart);
 
     async function load() {
-      const [osRes, exRes, miRes, setRes] = await Promise.all([
-        supabase.rpc("finance_orders_summary", {
-          p_from: range.ordersFrom,
-          p_to: range.endExclusive,
-          p_platform: null,
-          p_settled_only: true,
-        }),
+      const [taxOrders, exRes, miRes, setRes] = await Promise.all([
+        fetchTaxOrders(range), // by date paid out, same as the Tax Year page
         supabase.rpc("list_expenses_in_range", { p_from: range.expensesFrom, p_to: range.endExclusive }),
         supabase.rpc("list_mileage_in_range", { p_from: range.expensesFrom, p_to: range.endExclusive }),
         supabase.rpc("get_finance_settings"),
       ]);
 
-      const os = Array.isArray(osRes.data) ? osRes.data[0] : osRes.data;
       // Turnover = payout + fees (the gross column is low on TikTok-funded discounts and blank on some Etsy rows)
-      const payout = Number(os?.payout ?? 0);
+      const payout = summariseTaxOrders(taxOrders).payout;
       const expensesTotal = ((exRes.data ?? []) as any[]).reduce(
         (s: number, e: any) => s + Number(e.amount || 0), 0
       );

@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { supabase } from "../../lib/supabaseClient";
-import { fetchAllPages } from "../../lib/fetchAllPages";
 import { feeAmount } from "../../lib/money";
+import { fetchTaxOrders, type TaxOrderRow } from "../../lib/taxOrders";
 import {
   TRADING_START,
   PRE_TRADING_COSTS_FROM,
@@ -15,17 +15,7 @@ import {
   fmtDateUK,
 } from "../../lib/taxPeriods";
 
-type OrderRow = {
-  order_no: number;
-  order_date: string;
-  platform: string | null;
-  platform_order_ref: string | null;
-  gross_revenue: number | null;
-  platform_fees: number | null;
-  revenue: number | null;
-  is_settled: boolean;
-  is_refunded: boolean;
-};
+type OrderRow = TaxOrderRow;
 
 type ExpenseRow = {
   id: string;
@@ -137,17 +127,7 @@ export default function TaxYearPage() {
       setErrorMsg("");
       try {
         const [ord, exRes, miRes, sRes, oldRes] = await Promise.all([
-          fetchAllPages<OrderRow>((from, to) =>
-            supabase
-              .from("orders")
-              .select(
-                "order_no,order_date,platform,platform_order_ref,gross_revenue,platform_fees,revenue,is_settled,is_refunded"
-              )
-              .gte("order_date", period.ordersFrom)
-              .lt("order_date", period.endExclusive)
-              .order("order_no", { ascending: true })
-              .range(from, to)
-          ),
+          fetchTaxOrders(period),
           supabase.rpc("list_expenses_in_range", { p_from: period.expensesFrom, p_to: period.endExclusive }),
           supabase.rpc("list_mileage_in_range", { p_from: period.expensesFrom, p_to: period.endExclusive }),
           supabase.rpc("get_finance_settings"),
@@ -324,7 +304,7 @@ export default function TaxYearPage() {
     const rows: unknown[][] = [
       [`Paca Prints partnership — ${period.label}`],
       ["Period", `${fmtDateUK(period.ordersFrom)} to ${fmtDateUK(period.endInclusive)}`],
-      ["Basis", "Cash basis. Turnover = platform payout + platform fees. Costs from the expenses log only."],
+      ["Basis", "Cash basis. Orders count in the tax year they were paid out (order date where no payout date is recorded). Turnover = platform payout + platform fees. Costs from the expenses log only."],
       [],
       ["Turnover", calc.turnover.toFixed(2)],
       ["Platform fees", calc.fees.toFixed(2)],
