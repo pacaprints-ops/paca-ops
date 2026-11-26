@@ -30,6 +30,9 @@ function toNum(s: string) {
   return Number.isFinite(n) ? n : 0;
 }
 
+const VAT_RATE = 0.2;
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
 export default function NewPurchasePage() {
   const router = useRouter();
 
@@ -46,6 +49,10 @@ export default function NewPurchasePage() {
   const [purchaseDate, setPurchaseDate] = useState<string>(todayISO());
   const [purchaseNumber, setPurchaseNumber] = useState<string>("");
   const [shippingCost, setShippingCost] = useState<string>("0");
+  // Paca isn't VAT registered, so VAT is part of the real cost. Tick this when the
+  // invoice lists prices without VAT: 20% is added to every line and the shipping on save.
+  const [addVat, setAddVat] = useState(false);
+  const withVat = (n: number) => (addVat ? round2(n * (1 + VAT_RATE)) : n);
   // ✅ removing header notes as per snag list
   // const [poNotes, setPoNotes] = useState<string>("");
 
@@ -107,10 +114,13 @@ export default function NewPurchasePage() {
   }, []);
 
   const totals = useMemo(() => {
-    const itemsCost = lines.reduce((sum, l) => sum + toNum(l.line_cost), 0);
-    const ship = toNum(shippingCost);
-    return { itemsCost, ship, total: itemsCost + ship };
-  }, [lines, shippingCost]);
+    const exVat = lines.reduce((sum, l) => sum + toNum(l.line_cost), 0) + toNum(shippingCost);
+    const itemsCost = lines.reduce((sum, l) => sum + withVat(toNum(l.line_cost)), 0);
+    const ship = withVat(toNum(shippingCost));
+    const total = itemsCost + ship;
+    return { itemsCost, ship, total, vat: total - exVat };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lines, shippingCost, addVat]);
 
   function updateLine(idx: number, patch: Partial<Line>) {
     setLines((prev) => prev.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
@@ -182,7 +192,7 @@ export default function NewPurchasePage() {
         itemsPayload.push({
           material_id: materialId,
           quantity: l.qty,
-          line_cost: l.cost,
+          line_cost: withVat(l.cost),
           starred: !!l.starred,
           notes: l.notes?.trim() || null,
         });
@@ -198,7 +208,7 @@ export default function NewPurchasePage() {
         p_purchase_date: purchaseDate,
         p_items: itemsPayload,
         p_purchase_number: purchaseNumber.trim() || null,
-        p_shipping_cost: toNum(shippingCost),
+        p_shipping_cost: withVat(toNum(shippingCost)),
         p_notes: null, // header notes removed
       });
 
@@ -305,18 +315,37 @@ export default function NewPurchasePage() {
               </label>
             </div>
 
+            <label className="mt-3 flex items-start gap-2 rounded-md border bg-amber-50 px-3 py-2 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={addVat}
+                onChange={(e) => setAddVat(e.target.checked)}
+              />
+              <span>
+                <span className="font-medium text-gray-900">Add VAT (20%)</span>
+                <span className="block text-xs text-gray-600">
+                  Tick if the invoice prices are without VAT. Type the prices as shown, and 20% is added to each
+                  line and the shipping when you save. The Total below should match the invoice total.
+                </span>
+              </span>
+            </label>
+
             <div className="mt-3 grid grid-cols-3 gap-3 text-sm">
               <div className="rounded-md border bg-gray-50 px-3 py-2">
-                <div className="text-xs text-gray-600">Items £</div>
+                <div className="text-xs text-gray-600">Items £{addVat ? " (inc VAT)" : ""}</div>
                 <div className="font-semibold">{totals.itemsCost.toFixed(2)}</div>
               </div>
               <div className="rounded-md border bg-gray-50 px-3 py-2">
-                <div className="text-xs text-gray-600">Shipping £</div>
+                <div className="text-xs text-gray-600">Shipping £{addVat ? " (inc VAT)" : ""}</div>
                 <div className="font-semibold">{totals.ship.toFixed(2)}</div>
               </div>
               <div className="rounded-md border bg-gray-50 px-3 py-2">
                 <div className="text-xs text-gray-600">Total £</div>
                 <div className="font-semibold">{totals.total.toFixed(2)}</div>
+                {addVat ? (
+                  <div className="text-[11px] text-gray-500">includes £{totals.vat.toFixed(2)} VAT</div>
+                ) : null}
               </div>
             </div>
           </div>
@@ -428,10 +457,12 @@ export default function NewPurchasePage() {
 
                     {/* Unit cost */}
                     <div className="sm:col-span-12 text-xs text-gray-500">
-                      Unit cost:{" "}
+                      Unit cost{addVat ? " (inc VAT)" : ""}:{" "}
                       <strong>
                         £
-                        {toNum(l.quantity) > 0 ? (toNum(l.line_cost) / toNum(l.quantity)).toFixed(4) : "0.0000"}
+                        {toNum(l.quantity) > 0
+                          ? (withVat(toNum(l.line_cost)) / toNum(l.quantity)).toFixed(4)
+                          : "0.0000"}
                       </strong>
                     </div>
                   </div>
